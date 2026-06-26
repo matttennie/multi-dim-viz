@@ -270,64 +270,55 @@ function buildTorus(dim, sides) {
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
-  // A torus is a curved surface, so it should read as ROUND, not faceted. We
-  // floor the segment counts well above `sides` so even a low Sides setting
-  // gives a smooth donut; `sides` still nudges the detail upward. nu = segments
-  // around the main ring (the hole), nv = segments around the tube.
-  const nu = Math.min(Math.max(sides * 2, 36), 64)
-  const nv = Math.min(Math.max(sides, 18), 32)
+  // dim >= 3: a torus SURFACE (2-manifold) built as a round donut in dims 0,1,2,
+  // then coiled into each higher dimension with its own winding harmonic. dim 3
+  // is the clean donut (no extra windings); every added dimension adds a finer
+  // coil, so the shape genuinely changes at EVERY dimension. Crucially it stays
+  // a light, low-overdraw shell — unlike a true n-torus (T^n), whose translucent
+  // 2-faces self-overlap so heavily they collapse the lit Planes mode.
+  //
+  // (A genuine n-torus would be a k=floor(dim/2)-fold product of circles; it
+  // renders fine as lines but is fragment-bound in transparent Planes mode, so
+  // we use this wound 2-torus embedding instead.)
+  const nu = Math.min(Math.max(sides * 2, 36), 64) // around the main ring
+  const nv = Math.min(Math.max(sides, 18), 32) // around the tube
   const idx = (i, j) => i * nv + j
+  const R = 0.6
+  const r = 0.3
+
   const vertices = []
-
-  if (dim === 3) {
-    // Standard donut.
-    const R = 0.66
-    const r = 0.34
-    for (let i = 0; i < nu; i++) {
-      const u = (2 * Math.PI * i) / nu
-      for (let j = 0; j < nv; j++) {
-        const v = (2 * Math.PI * j) / nv
-        const ring = R + r * Math.cos(v)
-        const p = zeros(dim)
-        p[0] = ring * Math.cos(u)
-        p[1] = ring * Math.sin(u)
-        p[2] = r * Math.sin(v)
-        vertices.push(p)
-      }
-    }
-  } else {
-    // dim >= 4: Clifford / flat torus living in dims 0..3.
-    const a = 0.7
-    const b = 0.7
-    for (let i = 0; i < nu; i++) {
-      const u = (2 * Math.PI * i) / nu
-      for (let j = 0; j < nv; j++) {
-        const v = (2 * Math.PI * j) / nv
-        const p = zeros(dim)
-        p[0] = a * Math.cos(u)
-        p[1] = a * Math.sin(u)
-        p[2] = b * Math.cos(v)
-        p[3] = b * Math.sin(v)
-        vertices.push(p)
-      }
-    }
-  }
-
-  // Grid edges with wrap-around in both directions.
-  const edges = []
   for (let i = 0; i < nu; i++) {
+    const u = (2 * Math.PI * i) / nu
     for (let j = 0; j < nv; j++) {
-      edges.push([idx(i, j), idx((i + 1) % nu, j)])
-      edges.push([idx(i, j), idx(i, (j + 1) % nv)])
+      const v = (2 * Math.PI * j) / nv
+      const tube = R + r * Math.cos(v)
+      const p = zeros(dim)
+      p[0] = tube * Math.cos(u)
+      p[1] = tube * Math.sin(u)
+      p[2] = r * Math.sin(v)
+      // Coil into each higher axis with an increasing-frequency winding so every
+      // added dimension visibly changes the embedding.
+      for (let d = 3; d < dim; d++) {
+        const h = d - 2 // 1, 2, 3, ...
+        const amp = 0.4 / Math.sqrt(h)
+        const freq = h + 1
+        p[d] =
+          d % 2 === 1
+            ? amp * Math.sin(freq * u + v)
+            : amp * Math.cos(freq * v - u)
+      }
+      vertices.push(p)
     }
   }
 
-  // Grid quad faces (ordered cycles).
+  const edges = []
   const faces = []
   for (let i = 0; i < nu; i++) {
     for (let j = 0; j < nv; j++) {
       const i1 = (i + 1) % nu
       const j1 = (j + 1) % nv
+      edges.push([idx(i, j), idx(i1, j)])
+      edges.push([idx(i, j), idx(i, j1)])
       faces.push([idx(i, j), idx(i1, j), idx(i1, j1), idx(i, j1)])
     }
   }

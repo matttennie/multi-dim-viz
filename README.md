@@ -98,6 +98,14 @@ src/
   remaining coordinates by a `distance − xₖ` term at each step (the nested
   "tesseract" look); orthographic simply drops the extra coordinates. Three.js
   then handles the final 3D → 2D camera projection.
+- **Curved shapes & dimension.** A torus is a 2-surface, so the literal
+  higher-dimensional object is the n-torus (a product of n circles). But as a
+  space-filling manifold its translucent 2-faces self-overlap so heavily they
+  collapse the lit Planes mode (fragment-bound overdraw). So the torus is kept a
+  single 2-surface that *coils* into each higher axis with its own winding
+  harmonic — it visibly changes at every dimension while staying a fast,
+  low-overdraw shell. (The Möbius and sphere are likewise surfaces living in
+  dims 0–2 that tumble through the higher dimensions via rotation.)
 - **Normalization.** Every shape is centered and uniformly scaled so its maximum
   radius is ~1, so all shapes and dimensions fit the same view without
   per-axis distortion.
@@ -112,6 +120,6 @@ src/
 ## More screenshots
 
 See [`docs/screenshots/`](docs/screenshots/) — tesseract (lines & planes), the
-round 3D torus, the Möbius strip, 8-cube (perspective & orthographic),
-5-simplex, 4D cross-polytope, octagonal prism, a sphere, the dimension-colored
-planes, and the classic shape dropdown.
+round 3D torus, an 8D coiled torus, the Möbius strip, 8-cube (perspective &
+orthographic), 5-simplex, 4D cross-polytope, octagonal prism, a sphere, the
+dimension-colored planes, and the classic shape dropdown.
