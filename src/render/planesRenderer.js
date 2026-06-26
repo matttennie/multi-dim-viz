@@ -22,23 +22,29 @@
  *
  * Implementation notes:
  *   - Use THREE.Mesh + BufferGeometry (non-indexed). Material:
- *     MeshStandardMaterial({ color, transparent:true, opacity:~0.35,
- *       side:THREE.DoubleSide, metalness:~0.1, roughness:~0.45,
- *       depthWrite:false }). depthWrite:false avoids ugly transparency sorting.
+ *     MeshStandardMaterial({ vertexColors, transparent, side:DoubleSide,
+ *       metalness, roughness, depthWrite:false }). depthWrite:false avoids ugly
+ *       transparency sorting.
+ *   - Faces are colored the SAME way edges are in Lines mode: each face takes
+ *     the color of its dominant axis (axes 0/1/2 share a color, 3..7 distinct),
+ *     applied as per-vertex colors with a white material base so the scene
+ *     light still shades them.
  *   - The light(s) live in the scene (set up in main.js); this renderer only
- *     provides the lit mesh. Choose a cool base color that looks good on black.
+ *     provides the lit mesh.
  *   - update() should reuse the same typed arrays between frames (only
  *     reallocate in build() when triangle count changes).
  */
 import * as THREE from 'three'
+import { colorForAxis, dominantAxisOfFace } from './colors.js'
 
 export class PlanesRenderer {
   constructor() {
     this._geometry = new THREE.BufferGeometry()
     this._material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#5fbcff'), // cool, slightly cyan blue — good on black
+      color: 0xffffff, // white base so per-vertex dimension colors show true
+      vertexColors: true,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.25, // 10 percentage points more transparent than before (was 0.35)
       side: THREE.DoubleSide,
       metalness: 0.1,
       roughness: 0.45,
@@ -58,14 +64,22 @@ export class PlanesRenderer {
 
   build(shape) {
     const faces = shape.faces || []
+    const baseVerts = shape.vertices || []
 
     // Fan-triangulate each face polygon: face [v0,v1,...,vk] -> triangles
-    // (v0,v1,v2),(v0,v2,v3),... Store the flat triangle->vertexIndex list.
+    // (v0,v1,v2),(v0,v2,v3),... Store the flat triangle->vertexIndex list, and
+    // build a parallel per-vertex color array: every triangle of a face gets
+    // that face's dominant-axis color (computed once from the base geometry, so
+    // colors stay stable while the shape spins).
     const triIndices = []
+    const colorList = [] // r,g,b per emitted triangle vertex
     for (let f = 0; f < faces.length; f++) {
       const face = faces[f]
+      const c = colorForAxis(dominantAxisOfFace(baseVerts, face))
       for (let i = 1; i < face.length - 1; i++) {
         triIndices.push(face[0], face[i], face[i + 1])
+        // three vertices for this triangle, all the same face color
+        colorList.push(c.r, c.g, c.b, c.r, c.g, c.b, c.r, c.g, c.b)
       }
     }
     this._triIndices = triIndices
@@ -85,6 +99,12 @@ export class PlanesRenderer {
       // (re)create a correctly sized normal attribute.
       this._geometry.deleteAttribute('normal')
     }
+
+    // Colors are static for a given shape; (re)build the attribute each build().
+    this._geometry.setAttribute(
+      'color',
+      new THREE.BufferAttribute(new Float32Array(colorList), 3),
+    )
   }
 
   update(projected3D) {

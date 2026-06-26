@@ -60,3 +60,40 @@ export function dominantAxis(vertexA, vertexB) {
   }
   return best
 }
+
+/**
+ * Returns the dominant axis of a face (used to color Planes mode the same way
+ * edges are colored in Lines mode). The face's dominant axis is the dimension
+ * with the largest coordinate spread (max − min) across the face's vertices —
+ * the natural generalization of dominantAxis() from an edge (2 points) to a
+ * polygon. Computed from the UN-rotated base geometry so face colors stay
+ * stable while the shape spins.
+ *
+ *   vertices    : number[][]  the base N-D vertices
+ *   faceIndices : number[]    indices into `vertices` forming the face
+ */
+export function dominantAxisOfFace(vertices, faceIndices) {
+  if (!faceIndices || faceIndices.length === 0) return 0
+  const dim = vertices[faceIndices[0]].length
+  let best = 0
+  let bestSpread = -Infinity
+  for (let a = 0; a < dim; a++) {
+    let min = Infinity
+    let max = -Infinity
+    for (let k = 0; k < faceIndices.length; k++) {
+      const x = vertices[faceIndices[k]][a]
+      if (x < min) min = x
+      if (x > max) max = x
+    }
+    const spread = max - min
+    // Use >= so that on a tie the HIGHER axis wins. An axis-aligned face (e.g. a
+    // hypercube square in plane (i,j)) has equal spread on both axes; biasing to
+    // the higher one makes each face show the highest dimension it spans, giving
+    // Planes mode the same color variety as Lines mode.
+    if (spread >= bestSpread) {
+      bestSpread = spread
+      best = a
+    }
+  }
+  return best
+}

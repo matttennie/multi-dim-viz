@@ -56,27 +56,24 @@ export function createPanel(options) {
   el.append(top)
   el.append(divider())
 
-  // --- Shape dropdown ------------------------------------------------------
+  // --- Shape dropdown (custom; menu renders inside the page) ----------------
+  let currentShape = state.type
+  const dropdown = makeDropdown({
+    options: shapes,
+    value: state.type,
+    onChange: (value) => {
+      currentShape = value
+      onShape(value)
+      refreshSidesEnabled()
+    },
+  })
   const shapeRow = document.createElement('div')
   shapeRow.className = 'panel__row'
-  const shapeLabel = label('Shape')
-  const select = document.createElement('select')
-  for (const s of shapes) {
-    const opt = document.createElement('option')
-    opt.value = s.value
-    opt.textContent = s.label
-    if (s.value === state.type) opt.selected = true
-    select.append(opt)
-  }
-  select.addEventListener('change', () => {
-    onShape(select.value)
-    refreshSidesEnabled()
-  })
-  shapeRow.append(shapeLabel, select)
-  // Stack label above the full-width select.
+  // Stack the label above the full-width dropdown.
   shapeRow.style.flexDirection = 'column'
   shapeRow.style.alignItems = 'stretch'
   shapeRow.style.gap = '6px'
+  shapeRow.append(label('Shape'), dropdown.el)
   el.append(shapeRow)
 
   // --- Dimensions stepper --------------------------------------------------
@@ -99,7 +96,7 @@ export function createPanel(options) {
   el.append(sidesRow)
 
   function refreshSidesEnabled() {
-    const shape = shapes.find((s) => s.value === select.value)
+    const shape = shapes.find((s) => s.value === currentShape)
     const enabled = shape ? shape.usesSides : false
     sidesRow.classList.toggle('panel__row--disabled', !enabled)
   }
@@ -241,4 +238,98 @@ function makeSwitch(initial, onChange) {
   labelEl.append(input, track)
   input.addEventListener('change', () => onChange(input.checked))
   return labelEl
+}
+
+/**
+ * A classic dropdown whose menu is plain DOM positioned within the page (not a
+ * native OS popup), so it always renders inside the browser window.
+ *   options : Array<{ value, label }>
+ *   value   : initial selected value
+ *   onChange(value)
+ */
+function makeDropdown({ options, value, onChange }) {
+  const root = document.createElement('div')
+  root.className = 'dropdown'
+
+  const field = document.createElement('button')
+  field.type = 'button'
+  field.className = 'dropdown__field'
+  const fieldText = document.createElement('span')
+  fieldText.className = 'dropdown__text'
+  const caret = document.createElement('span')
+  caret.className = 'dropdown__caret'
+  caret.textContent = '▾'
+  field.append(fieldText, caret)
+
+  const menu = document.createElement('div')
+  menu.className = 'dropdown__menu'
+
+  let current = value
+  const labelFor = (v) => {
+    const o = options.find((opt) => opt.value === v)
+    return o ? o.label : ''
+  }
+  fieldText.textContent = labelFor(current)
+
+  const optionEls = options.map((o) => {
+    const item = document.createElement('button')
+    item.type = 'button'
+    item.className =
+      'dropdown__option' + (o.value === current ? ' dropdown__option--active' : '')
+    item.textContent = o.label
+    item.dataset.value = o.value
+    item.addEventListener('click', () => {
+      choose(o.value)
+      close()
+      field.focus()
+    })
+    menu.append(item)
+    return item
+  })
+
+  root.append(field, menu)
+
+  let open = false
+  const openMenu = () => {
+    open = true
+    root.classList.add('dropdown--open')
+    document.addEventListener('pointerdown', onOutside, true)
+    document.addEventListener('keydown', onKey)
+  }
+  const close = () => {
+    open = false
+    root.classList.remove('dropdown--open')
+    document.removeEventListener('pointerdown', onOutside, true)
+    document.removeEventListener('keydown', onKey)
+  }
+  const onOutside = (e) => {
+    if (!root.contains(e.target)) close()
+  }
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      close()
+      field.focus()
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const i = options.findIndex((o) => o.value === current)
+      const next =
+        e.key === 'ArrowDown'
+          ? Math.min(options.length - 1, i + 1)
+          : Math.max(0, i - 1)
+      choose(options[next].value)
+      optionEls[next].focus()
+    }
+  }
+  const choose = (v) => {
+    current = v
+    fieldText.textContent = labelFor(v)
+    optionEls.forEach((elx) =>
+      elx.classList.toggle('dropdown__option--active', elx.dataset.value === v),
+    )
+    onChange(v)
+  }
+
+  field.addEventListener('click', () => (open ? close() : openMenu()))
+
+  return { el: root, getValue: () => current, setValue: choose }
 }

@@ -26,7 +26,7 @@ To build a static bundle: `npm run build` (output in `dist/`), preview with
 | **FPS** | Live framerate (render is capped at 60). |
 | **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, N-gon Prism, Sphere/Hypersphere. |
 | **Dimensions** | 1–8, with −/+ steppers (capped). Updates live. |
-| **Sides** | 3–24, with −/+ steppers. Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). |
+| **Sides** | 3–24, with −/+ steppers (capped at 24 to protect performance). Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). For the prism it's the polygon side count; for curved shapes (torus, sphere) it nudges detail — the torus always renders round. |
 | **Rotate** | Toggles the automatic N-dimensional tumble. |
 | **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
 
@@ -41,10 +41,13 @@ To build a static bundle: `npm run build` (output in `dist/`), preview with
   4–8 each get a distinct vivid hue, so you can read off which dimension an edge
   belongs to.
 - **Planes** — draws the shape's 2-faces as semi-transparent, double-sided lit
-  surfaces. A single external light source sits outside the object and surface
-  normals are recomputed every frame, so the light visibly plays across the
-  faces as the shape morphs. (Lighting on an N-D projection is physically
-  hand-wavy by nature — it's there to make the structure legible and pretty.)
+  surfaces. Faces are colored the **same way as edges**: each face takes the
+  color of its dominant axis (same 1/2/3-shared, 4–8-distinct palette), applied
+  as vertex colors over a white material so the light still shades them. A
+  single external light source sits outside the object and surface normals are
+  recomputed every frame, so the light visibly plays across the faces as the
+  shape morphs. (Lighting on an N-D projection is physically hand-wavy by
+  nature — it's there to make the structure legible and pretty.)
 
 ## How it works
 
@@ -106,6 +109,7 @@ src/
 
 ## More screenshots
 
-See [`docs/screenshots/`](docs/screenshots/) — tesseract (lines & planes), 3D
-torus, 8-cube (perspective & orthographic), 5-simplex, 4D cross-polytope,
-5D octagonal prism, and a sphere.
+See [`docs/screenshots/`](docs/screenshots/) — tesseract (lines & planes), the
+round 3D torus, 8-cube (perspective & orthographic), 5-simplex, 4D
+cross-polytope, octagonal prism, a sphere, the dimension-colored planes, and the
+classic shape dropdown.

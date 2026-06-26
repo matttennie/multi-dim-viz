@@ -269,8 +269,12 @@ function buildTorus(dim, sides) {
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
-  const nu = sides
-  const nv = sides
+  // A torus is a curved surface, so it should read as ROUND, not faceted. We
+  // floor the segment counts well above `sides` so even a low Sides setting
+  // gives a smooth donut; `sides` still nudges the detail upward. nu = segments
+  // around the main ring (the hole), nv = segments around the tube.
+  const nu = Math.min(Math.max(sides * 2, 36), 64)
+  const nv = Math.min(Math.max(sides, 18), 32)
   const idx = (i, j) => i * nv + j
   const vertices = []
 
