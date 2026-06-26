@@ -18,7 +18,7 @@ import { FpsMeter } from './ui/fps.js'
 // ---------------------------------------------------------------------------
 const DIM_MIN = 1
 const DIM_MAX = 8
-const SIDES_MIN = 3
+const SIDES_MIN = 1
 const SIDES_MAX = 24
 const PROJECT_DISTANCE = 3 // viewing distance used per N-D perspective collapse
 
@@ -88,7 +88,18 @@ let activeRenderer = null
 function rebuildShape() {
   shape = buildShape(state.type, state.dim, state.sides)
   baseVertices = shape.vertices
+
+  // Carry over the current rotation angles so the tumble keeps moving
+  // continuously when settings change instead of snapping back to the start.
+  // Planes that still exist (same axis pair) keep their angle; new planes
+  // (added when the dimension increases) start at 0.
+  const prev = rotations || []
   rotations = makeAutoRotations(state.dim)
+  for (const r of rotations) {
+    const match = prev.find((p) => p.i === r.i && p.j === r.j)
+    if (match) r.angle = match.angle
+  }
+
   applyMode(state.mode)
 }
 

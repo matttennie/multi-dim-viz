@@ -48,6 +48,7 @@ export const SHAPES = [
   { value: 'simplex', label: 'Simplex', usesSides: false },
   { value: 'crossPolytope', label: 'Cross-Polytope', usesSides: false },
   { value: 'torus', label: 'Torus', usesSides: true },
+  { value: 'mobius', label: 'Möbius Strip', usesSides: true },
   { value: 'prism', label: 'N-gon Prism', usesSides: true },
   { value: 'sphere', label: 'Sphere / Hypersphere', usesSides: true },
 ]
@@ -263,9 +264,9 @@ function buildCrossPolytope(dim) {
 // ---------------------------------------------------------------------------
 
 function buildTorus(dim, sides) {
-  // dim 2: a flat circle ring.
+  // dim 2: a flat circle ring (needs >= 3 points to read as a ring).
   if (dim === 2) {
-    const ring = polygonRing(dim, sides)
+    const ring = polygonRing(dim, Math.max(3, sides))
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
@@ -487,6 +488,74 @@ function buildSphere(dim, sides) {
 }
 
 // ---------------------------------------------------------------------------
+// mobius (Möbius strip)
+// ---------------------------------------------------------------------------
+
+function buildMobius(dim, sides) {
+  // A Möbius strip needs a third dimension to take its half-twist, so for
+  // dim 2 we fall back to a flat ring.
+  if (dim === 2) {
+    const ring = polygonRing(dim, Math.max(3, sides))
+    return finalize(ring.vertices, ring.edges, ring.faces, dim)
+  }
+
+  // Built in dims 0,1,2 (higher dims left at 0 so it tumbles through them under
+  // N-D rotation). Like the torus, we floor the loop resolution so it always
+  // reads as a smooth band; `sides` nudges the detail up.
+  const nu = Math.min(Math.max(sides * 3, 60), 120) // segments around the loop
+  const nv = 6 // segments across the width (nv + 1 points)
+  const R = 0.7 // loop radius
+  const w = 0.32 // half-width of the band
+
+  const widthPts = nv + 1
+  const vid = (i, j) => i * widthPts + j
+
+  const vertices = []
+  for (let i = 0; i < nu; i++) {
+    const t = (2 * Math.PI * i) / nu
+    const ct = Math.cos(t)
+    const st = Math.sin(t)
+    const cHalf = Math.cos(t / 2)
+    const sHalf = Math.sin(t / 2)
+    for (let j = 0; j <= nv; j++) {
+      const s = (j / nv - 0.5) * 2 * w // across the band, -w .. +w
+      const rad = R + s * cHalf
+      const p = zeros(dim)
+      p[0] = rad * ct
+      p[1] = rad * st
+      p[2] = s * sHalf
+      vertices.push(p)
+    }
+  }
+
+  // Stepping past the last loop segment returns to the start with the width
+  // flipped (j -> nv - j) — this seam is what makes the strip one-sided.
+  const nextLoop = (i, j) => (i + 1 < nu ? vid(i + 1, j) : vid(0, nv - j))
+
+  const edges = []
+  for (let i = 0; i < nu; i++) {
+    for (let j = 0; j <= nv; j++) {
+      edges.push([vid(i, j), nextLoop(i, j)]) // along the loop (flips at seam)
+      if (j < nv) edges.push([vid(i, j), vid(i, j + 1)]) // across the width
+    }
+  }
+
+  const faces = []
+  for (let i = 0; i < nu; i++) {
+    for (let j = 0; j < nv; j++) {
+      faces.push([
+        vid(i, j),
+        nextLoop(i, j),
+        nextLoop(i, j + 1),
+        vid(i, j + 1),
+      ])
+    }
+  }
+
+  return finalize(vertices, edges, faces, dim)
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -498,7 +567,7 @@ export function buildShape(type, dim, sides) {
 
   sides = Math.round(Number(sides))
   if (!Number.isFinite(sides)) sides = 6
-  sides = Math.max(3, Math.min(24, sides))
+  sides = Math.max(1, Math.min(24, sides))
 
   // dim 1 is a segment for every shape.
   if (dim === 1) return segment(dim)
@@ -511,11 +580,17 @@ export function buildShape(type, dim, sides) {
     case 'crossPolytope':
       return buildCrossPolytope(dim)
     case 'torus':
+      // Curved surface: floors its own resolution, so any sides >= 1 is fine.
       return buildTorus(dim, sides)
+    case 'mobius':
+      // Curved surface: floors its own resolution, so any sides >= 1 is fine.
+      return buildMobius(dim, sides)
     case 'prism':
-      return buildPrism(dim, sides)
+      // A prism's cross-section is a polygon, which needs >= 3 sides.
+      return buildPrism(dim, Math.max(3, sides))
     case 'sphere':
-      return buildSphere(dim, sides)
+      // A UV sphere needs >= 3 longitude/latitude segments to be a sphere.
+      return buildSphere(dim, Math.max(3, sides))
     default:
       return buildHypercube(dim)
   }

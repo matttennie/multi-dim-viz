@@ -24,10 +24,10 @@ To build a static bundle: `npm run build` (output in `dist/`), preview with
 | --- | --- |
 | **Lines / Planes** | View mode toggle. |
 | **FPS** | Live framerate (render is capped at 60). |
-| **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, N-gon Prism, Sphere/Hypersphere. |
+| **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, Möbius Strip, N-gon Prism, Sphere/Hypersphere. |
 | **Dimensions** | 1–8, with −/+ steppers (capped). Updates live. |
-| **Sides** | 3–24, with −/+ steppers (capped at 24 to protect performance). Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). For the prism it's the polygon side count; for curved shapes (torus, sphere) it nudges detail — the torus always renders round. |
-| **Rotate** | Toggles the automatic N-dimensional tumble. |
+| **Sides** | 1–24, with −/+ steppers (capped at 24 to protect performance). Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). For the prism it's the polygon side count (clamped to ≥3 internally, since a polygon needs at least 3 sides); for curved shapes (torus, Möbius, sphere) it nudges detail — the torus and Möbius always render smooth. |
+| **Rotate** | Toggles the automatic N-dimensional tumble. Changing other settings does **not** reset it — the tumble continues from its current orientation. |
 | **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
 
 - **Drag** (mouse or touch) to rotate the view.
@@ -91,7 +91,9 @@ src/
   of coordinate planes — always including a low plane for a familiar spin and,
   for dim ≥ 4, planes involving the highest axes so the new dimensions are
   visibly revealed. Plane speeds are mutually incommensurate, so the tumble
-  never visibly repeats.
+  never visibly repeats. Changing the shape/dimension/sides preserves the
+  current rotation angles (matching planes carry over), so the tumble keeps
+  moving continuously instead of snapping back to the start.
 - **Projection.** N-D → 3D collapses one axis at a time. Perspective divides the
   remaining coordinates by a `distance − xₖ` term at each step (the nested
   "tesseract" look); orthographic simply drops the extra coordinates. Three.js
@@ -110,6 +112,6 @@ src/
 ## More screenshots
 
 See [`docs/screenshots/`](docs/screenshots/) — tesseract (lines & planes), the
-round 3D torus, 8-cube (perspective & orthographic), 5-simplex, 4D
-cross-polytope, octagonal prism, a sphere, the dimension-colored planes, and the
-classic shape dropdown.
+round 3D torus, the Möbius strip, 8-cube (perspective & orthographic),
+5-simplex, 4D cross-polytope, octagonal prism, a sphere, the dimension-colored
+planes, and the classic shape dropdown.
