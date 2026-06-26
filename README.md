@@ -75,6 +75,35 @@ src/
   style.css
 ```
 
+## Design notes & decisions
+
+- **Per-axis edge coloring.** In Lines mode each edge is colored by its
+  *dominant axis* — the dimension along which its two endpoints differ most,
+  computed once from the un-rotated base geometry so colors stay stable while
+  the shape spins. Axes 0/1/2 deliberately share one color (they're the
+  familiar spatial dimensions); axes 3–7 each get a distinct vivid hue so a
+  higher-dimensional edge is instantly identifiable.
+- **N-D rotation planes.** A rotation in N dimensions happens in a *plane*
+  (a pair of axes), not around an axis. The auto-tumble rotates through a chain
+  of coordinate planes — always including a low plane for a familiar spin and,
+  for dim ≥ 4, planes involving the highest axes so the new dimensions are
+  visibly revealed. Plane speeds are mutually incommensurate, so the tumble
+  never visibly repeats.
+- **Projection.** N-D → 3D collapses one axis at a time. Perspective divides the
+  remaining coordinates by a `distance − xₖ` term at each step (the nested
+  "tesseract" look); orthographic simply drops the extra coordinates. Three.js
+  then handles the final 3D → 2D camera projection.
+- **Normalization.** Every shape is centered and uniformly scaled so its maximum
+  radius is ~1, so all shapes and dimensions fit the same view without
+  per-axis distortion.
+- **60fps cap.** The render loop throttles with a threshold a hair below one
+  true 60Hz frame (`1000/62`), so genuine 60Hz displays never beat-frequency
+  skip a jittery frame while 120/144Hz displays are still capped to ~60.
+- **Module contracts.** `main.js` owns integration and imports fixed
+  function/class signatures; geometry, math, and rendering are isolated leaf
+  modules behind those contracts (`{ vertices[][], edges[][], faces[][] }` is
+  the shared data shape), which keeps each module independently testable.
+
 ## More screenshots
 
 See [`docs/screenshots/`](docs/screenshots/) — tesseract (lines & planes), 3D
