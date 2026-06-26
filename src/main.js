@@ -149,7 +149,11 @@ function clamp(value, lo, hi) {
 // Render loop — throttled to 60fps
 // ---------------------------------------------------------------------------
 const fps = new FpsMeter()
-const FRAME_MS = 1000 / 60
+// Cap at ~60fps. The threshold sits a hair below a true 60Hz frame (1000/62)
+// so a real 60Hz display never beat-frequency-skips a jittery frame, while
+// 120/144Hz displays are still throttled down. The modulo accumulator on
+// lastFrame keeps the long-run average pinned to the cap.
+const FRAME_MS = 1000 / 62
 let lastFrame = performance.now()
 
 function loop(now) {
