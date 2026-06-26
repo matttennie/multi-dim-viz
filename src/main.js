@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
-import { buildShape, SHAPES } from './geometry/shapes.js'
+import { buildShape, SHAPES, shapeLimits } from './geometry/shapes.js'
 import {
   rotatePoints,
   projectTo3D,
@@ -131,14 +131,22 @@ const panel = createPanel({
   limits: { DIM_MIN, DIM_MAX, SIDES_MIN, SIDES_MAX },
   onShape: (value) => {
     state.type = value
+    // Clamp the current dim/sides into the new shape's valid range, then sync
+    // the steppers (ranges + values + enabled state) to match.
+    const lim = shapeLimits(value)
+    state.dim = clamp(state.dim, lim.dimMin, lim.dimMax)
+    state.sides = clamp(state.sides, lim.sidesMin, lim.sidesMax)
     rebuildShape()
+    panel.syncShape(value, state.dim, state.sides)
   },
   onDim: (value) => {
-    state.dim = clamp(value, DIM_MIN, DIM_MAX)
+    const lim = shapeLimits(state.type)
+    state.dim = clamp(value, lim.dimMin, lim.dimMax)
     rebuildShape()
   },
   onSides: (value) => {
-    state.sides = clamp(value, SIDES_MIN, SIDES_MAX)
+    const lim = shapeLimits(state.type)
+    state.sides = clamp(value, lim.sidesMin, lim.sidesMax)
     rebuildShape()
   },
   onMode: (mode) => applyMode(mode),

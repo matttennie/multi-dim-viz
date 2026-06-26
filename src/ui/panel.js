@@ -56,16 +56,26 @@ export function createPanel(options) {
   el.append(top)
   el.append(divider())
 
+  // Each shape's valid parameter ranges (read from the SHAPES entries, with the
+  // global limits as a fallback).
+  const limitsForType = (type) => {
+    const s = shapes.find((x) => x.value === type) || shapes[0]
+    return {
+      usesSides: s.usesSides,
+      dimMin: s.dimMin ?? limits.DIM_MIN,
+      dimMax: s.dimMax ?? limits.DIM_MAX,
+      sidesMin: s.sidesMin ?? limits.SIDES_MIN,
+      sidesMax: s.sidesMax ?? limits.SIDES_MAX,
+    }
+  }
+  const initLim = limitsForType(state.type)
+
   // --- Shape dropdown (custom; menu renders inside the page) ----------------
-  let currentShape = state.type
   const dropdown = makeDropdown({
     options: shapes,
     value: state.type,
-    onChange: (value) => {
-      currentShape = value
-      onShape(value)
-      refreshSidesEnabled()
-    },
+    // main.js clamps state into the new shape's range and calls syncShape().
+    onChange: (value) => onShape(value),
   })
   const shapeRow = document.createElement('div')
   shapeRow.className = 'panel__row'
@@ -79,8 +89,8 @@ export function createPanel(options) {
   // --- Dimensions stepper --------------------------------------------------
   const dimStepper = makeStepper({
     initial: state.dim,
-    min: limits.DIM_MIN,
-    max: limits.DIM_MAX,
+    min: initLim.dimMin,
+    max: initLim.dimMax,
     onChange: onDim,
   })
   el.append(row('Dimensions', dimStepper.el))
@@ -88,19 +98,24 @@ export function createPanel(options) {
   // --- Sides stepper -------------------------------------------------------
   const sidesStepper = makeStepper({
     initial: state.sides,
-    min: limits.SIDES_MIN,
-    max: limits.SIDES_MAX,
+    min: initLim.sidesMin,
+    max: initLim.sidesMax,
     onChange: onSides,
   })
   const sidesRow = row('Sides', sidesStepper.el)
   el.append(sidesRow)
 
-  function refreshSidesEnabled() {
-    const shape = shapes.find((s) => s.value === currentShape)
-    const enabled = shape ? shape.usesSides : false
-    sidesRow.classList.toggle('panel__row--disabled', !enabled)
+  // Reflect a shape's parameter ranges in the controls. Called by main.js right
+  // after it clamps state into the newly selected shape's range.
+  function syncShape(type, dim, sides) {
+    const lim = limitsForType(type)
+    dimStepper.setRange(lim.dimMin, lim.dimMax)
+    dimStepper.setValue(dim)
+    sidesStepper.setRange(lim.sidesMin, lim.sidesMax)
+    sidesStepper.setValue(sides)
+    sidesRow.classList.toggle('panel__row--disabled', !lim.usesSides)
   }
-  refreshSidesEnabled()
+  sidesRow.classList.toggle('panel__row--disabled', !initLim.usesSides)
 
   el.append(divider())
 
@@ -138,6 +153,7 @@ export function createPanel(options) {
     setFps(value) {
       fpsValue.textContent = String(value)
     },
+    syncShape,
   }
 }
 
@@ -194,34 +210,47 @@ function makeStepper({ initial, min, max, onChange }) {
   plus.textContent = '+'
 
   let value = initial
+  let curMin = min
+  let curMax = max
 
-  const clamp = (v) => Math.max(min, Math.min(max, v))
-  const apply = (v) => {
-    value = clamp(v)
+  const clamp = (v) => Math.max(curMin, Math.min(curMax, v))
+  const refresh = () => {
     input.value = String(value)
-    minus.disabled = value <= min
-    plus.disabled = value >= max
-    onChange(value)
+    minus.disabled = value <= curMin
+    plus.disabled = value >= curMax
   }
-  const set = (v) => {
-    if (Number.isNaN(v)) return
-    if (v === value) {
-      input.value = String(value)
+  // User-initiated change: clamp, reflect, and notify.
+  const apply = (v) => {
+    if (Number.isNaN(v)) {
+      refresh()
       return
     }
-    apply(v)
+    value = clamp(v)
+    refresh()
+    onChange(value)
+  }
+  // External sync: reflect a value WITHOUT notifying (avoids rebuild loops).
+  const setValue = (v) => {
+    value = clamp(v)
+    refresh()
+  }
+  // Update the allowed range (e.g. when the selected shape changes) and re-clamp.
+  const setRange = (mn, mx) => {
+    curMin = mn
+    curMax = mx
+    input.min = String(mn)
+    input.max = String(mx)
+    value = clamp(value)
+    refresh()
   }
 
   minus.addEventListener('click', () => apply(value - 1))
   plus.addEventListener('click', () => apply(value + 1))
-  input.addEventListener('change', () => set(parseInt(input.value, 10)))
+  input.addEventListener('change', () => apply(parseInt(input.value, 10)))
 
-  // initialise disabled states
-  minus.disabled = value <= min
-  plus.disabled = value >= max
-
+  refresh()
   wrap.append(minus, input, plus)
-  return { el: wrap, set: apply }
+  return { el: wrap, setRange, setValue }
 }
 
 function makeSwitch(initial, onChange) {

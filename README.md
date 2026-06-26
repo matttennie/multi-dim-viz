@@ -25,8 +25,21 @@ To build a static bundle: `npm run build` (output in `dist/`), preview with
 | **Lines / Planes** | View mode toggle. |
 | **FPS** | Live framerate (render is capped at 60). |
 | **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, Möbius Strip, N-gon Prism, Sphere/Hypersphere. |
-| **Dimensions** | 1–8, with −/+ steppers (capped). Updates live. |
-| **Sides** | 1–24, with −/+ steppers (capped at 24 to protect performance). Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). For the prism it's the polygon side count (clamped to ≥3 internally, since a polygon needs at least 3 sides); for curved shapes (torus, Möbius, sphere) it nudges detail — the torus and Möbius always render smooth. |
+| **Dimensions** | −/+ steppers, range **per shape** (see below). Updates live. |
+| **Sides** | −/+ steppers, range **per shape** (see below). Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). |
+
+### Per-shape parameter ranges
+
+Each shape only allows the parameter values where it's geometrically meaningful;
+the steppers re-range (and re-clamp the current value) when you switch shapes.
+
+| Shape | Dimensions | Sides | Why |
+| --- | --- | --- | --- |
+| Hypercube / Simplex / Cross-Polytope | 1–8 | — | meaningful at every dimension, incl. the 1-D segment |
+| Torus | 2–8 | 12–32 | dim 1 isn't a torus; ≥12 segments keep the tube round |
+| Möbius Strip | 3–8 | 12–32 | the half-twist physically needs 3 dimensions |
+| N-gon Prism | 2–8 | 3–24 | the cross-section polygon needs ≥3 sides |
+| Sphere / Hypersphere | 2–8 | 3–32 | a UV sphere needs ≥3 segments |
 | **Rotate** | Toggles the automatic N-dimensional tumble. Changing other settings does **not** reset it — the tumble continues from its current orientation. |
 | **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
 

@@ -43,15 +43,31 @@
  *                       controlling resolution; lifted/tessellated for the dim.
  */
 
+// Each shape carries its own valid parameter ranges. The UI steppers and the
+// buildShape() clamp both read these, so a shape can never be driven outside the
+// range where it's geometrically meaningful (e.g. a Möbius strip needs >= 3
+// dimensions for its half-twist; a prism's polygon needs >= 3 sides).
 export const SHAPES = [
-  { value: 'hypercube', label: 'Hypercube', usesSides: false },
-  { value: 'simplex', label: 'Simplex', usesSides: false },
-  { value: 'crossPolytope', label: 'Cross-Polytope', usesSides: false },
-  { value: 'torus', label: 'Torus', usesSides: true },
-  { value: 'mobius', label: 'Möbius Strip', usesSides: true },
-  { value: 'prism', label: 'N-gon Prism', usesSides: true },
-  { value: 'sphere', label: 'Sphere / Hypersphere', usesSides: true },
+  { value: 'hypercube', label: 'Hypercube', usesSides: false, dimMin: 1, dimMax: 8, sidesMin: 3, sidesMax: 24 },
+  { value: 'simplex', label: 'Simplex', usesSides: false, dimMin: 1, dimMax: 8, sidesMin: 3, sidesMax: 24 },
+  { value: 'crossPolytope', label: 'Cross-Polytope', usesSides: false, dimMin: 1, dimMax: 8, sidesMin: 3, sidesMax: 24 },
+  { value: 'torus', label: 'Torus', usesSides: true, dimMin: 2, dimMax: 8, sidesMin: 12, sidesMax: 32 },
+  { value: 'mobius', label: 'Möbius Strip', usesSides: true, dimMin: 3, dimMax: 8, sidesMin: 12, sidesMax: 32 },
+  { value: 'prism', label: 'N-gon Prism', usesSides: true, dimMin: 2, dimMax: 8, sidesMin: 3, sidesMax: 24 },
+  { value: 'sphere', label: 'Sphere / Hypersphere', usesSides: true, dimMin: 2, dimMax: 8, sidesMin: 3, sidesMax: 32 },
 ]
+
+/** Valid parameter ranges for a shape (falls back to the first shape). */
+export function shapeLimits(type) {
+  const s = SHAPES.find((x) => x.value === type) || SHAPES[0]
+  return {
+    usesSides: s.usesSides,
+    dimMin: s.dimMin,
+    dimMax: s.dimMax,
+    sidesMin: s.sidesMin,
+    sidesMax: s.sidesMax,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -280,8 +296,10 @@ function buildTorus(dim, sides) {
   // (A genuine n-torus would be a k=floor(dim/2)-fold product of circles; it
   // renders fine as lines but is fragment-bound in transparent Planes mode, so
   // we use this wound 2-torus embedding instead.)
-  const nu = Math.min(Math.max(sides * 2, 36), 64) // around the main ring
-  const nv = Math.min(Math.max(sides, 18), 32) // around the tube
+  // `sides` directly controls resolution; the shape's sidesMin (12) keeps it
+  // round, and the internal caps bound the vertex count.
+  const nu = Math.min(sides * 2, 64) // around the main ring
+  const nv = Math.min(sides, 32) // around the tube
   const idx = (i, j) => i * nv + j
   const R = 0.6
   const r = 0.3
@@ -493,7 +511,7 @@ function buildMobius(dim, sides) {
   // Built in dims 0,1,2 (higher dims left at 0 so it tumbles through them under
   // N-D rotation). Like the torus, we floor the loop resolution so it always
   // reads as a smooth band; `sides` nudges the detail up.
-  const nu = Math.min(Math.max(sides * 3, 60), 120) // segments around the loop
+  const nu = Math.min(sides * 4, 160) // segments around the loop (sidesMin keeps it smooth)
   const nv = 6 // segments across the width (nv + 1 points)
   const R = 0.7 // loop radius
   const w = 0.32 // half-width of the band
@@ -551,16 +569,19 @@ function buildMobius(dim, sides) {
 // ---------------------------------------------------------------------------
 
 export function buildShape(type, dim, sides) {
-  // Robust clamping of inputs.
+  // Clamp inputs to THIS shape's valid range (defensive — the UI already keeps
+  // them in range, but a shape must never receive degenerate parameters).
+  const lim = shapeLimits(type)
+
   dim = Math.round(Number(dim))
-  if (!Number.isFinite(dim)) dim = 3
-  dim = Math.max(1, Math.min(8, dim))
+  if (!Number.isFinite(dim)) dim = lim.dimMin
+  dim = Math.max(lim.dimMin, Math.min(lim.dimMax, dim))
 
   sides = Math.round(Number(sides))
-  if (!Number.isFinite(sides)) sides = 6
-  sides = Math.max(1, Math.min(24, sides))
+  if (!Number.isFinite(sides)) sides = lim.sidesMin
+  sides = Math.max(lim.sidesMin, Math.min(lim.sidesMax, sides))
 
-  // dim 1 is a segment for every shape.
+  // dim 1 is a segment (only the polytopes allow dim 1).
   if (dim === 1) return segment(dim)
 
   switch (type) {
@@ -571,17 +592,13 @@ export function buildShape(type, dim, sides) {
     case 'crossPolytope':
       return buildCrossPolytope(dim)
     case 'torus':
-      // Curved surface: floors its own resolution, so any sides >= 1 is fine.
       return buildTorus(dim, sides)
     case 'mobius':
-      // Curved surface: floors its own resolution, so any sides >= 1 is fine.
       return buildMobius(dim, sides)
     case 'prism':
-      // A prism's cross-section is a polygon, which needs >= 3 sides.
-      return buildPrism(dim, Math.max(3, sides))
+      return buildPrism(dim, sides)
     case 'sphere':
-      // A UV sphere needs >= 3 longitude/latitude segments to be a sphere.
-      return buildSphere(dim, Math.max(3, sides))
+      return buildSphere(dim, sides)
     default:
       return buildHypercube(dim)
   }
