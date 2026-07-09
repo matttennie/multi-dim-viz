@@ -176,12 +176,13 @@ scripts/
   2-cube, triangle for 2-simplex, circle/ring for 2D torus/sphere).
 - **Rotation vs. shape change.** Visible-space rotation and high-dimensional
   projection morphing are separate controls. `Rotate` spins the projected 3D
-  object as a rigid Three.js object; `Shape Change` drives every N-D rotation
-  plane that touches a hidden axis (4D+) — including the mixed visible↔hidden
-  planes like (2,3) that produce the classic "inside-out" morph — plus a
-  hidden-depth pulse, so the projection telescopes/morphs without any rigid
-  visible-space spin. Purely visible planes are never auto-driven; ordinary
-  spin belongs to `Rotate` alone.
+  object as a rigid Three.js object; `Shape Change` drives the depth-like
+  rotation planes — z↔hidden (the classic (2,3) "inside-out" morph) and
+  hidden↔hidden — plus a hidden-depth pulse. Planes touching x or y are never
+  auto-driven, even against a hidden axis: rotating x or y through hidden
+  depth projects as a turntable turn (apparent spin), and spin belongs to
+  `Rotate` alone. With x/y untouched, Shape Change motion is purely radial
+  nesting/telescoping with no apparent rotation.
 - **N-D rotation planes.** A rotation in N dimensions happens in a *plane*
   (a pair of axes), not around an axis. The auto-tumble rotates through a chain
   of coordinate planes — always including a low plane for a familiar spin and,

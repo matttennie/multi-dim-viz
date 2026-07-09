@@ -34,7 +34,10 @@ npm run dev -- --port 5199 --strictPort   # run in background
 - Boot: 3D hypercube, Rotate ON spins on two axes; Shape Change row is
   dimmed/disabled at dim ≤ 3.
 - Dimensions → 4+: Shape Change enables; with Rotate OFF the shape should
-  still morph (N-D rotations through hidden axes + depth pulse).
+  still morph (depth-like rotation planes z↔hidden / hidden↔hidden + depth
+  pulse) but must NOT appear to turn about the vertical or horizontal axis —
+  all screen motion should be radial (nesting/telescoping). Apparent turning
+  means a plane touching x or y leaked into shape change.
 - Toggle Shape Change OFF mid-morph: shape relaxes instantly to undeformed
   and stays static; a Persp→Ortho→Persp round-trip must reproduce the same
   frame (no stale deformation).

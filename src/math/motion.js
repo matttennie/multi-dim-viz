@@ -13,13 +13,17 @@
 const HIDDEN_DEPTH_PULSE = 0.28
 
 /**
- * A rotation plane belongs to Shape Change when it touches at least one
- * hidden axis. Mixed planes like (2,3) are the ones that produce the classic
- * "inside-out" higher-dimensional morph; purely visible planes (both axes
- * < 3) would read as ordinary spatial spin, which Rotate owns.
+ * A rotation plane belongs to Shape Change only when both axes are
+ * depth-like: z (axis 2) or hidden (>= 3). The (2,3) plane is the classic
+ * "inside-out" tesseract morph, and hidden-hidden planes reshuffle projection
+ * depth. Planes touching x or y are excluded even when the other axis is
+ * hidden — rotating x or y through a hidden axis projects as a turntable
+ * turn about the vertical/horizontal axis, which reads as spin, and spin
+ * belongs to Rotate. Because x and y stay untouched, all Shape Change motion
+ * is radial nesting/telescoping with no apparent rotation.
  */
 export function isShapeChangeRotation(rotation) {
-  return rotation.i >= 3 || rotation.j >= 3
+  return rotation.i >= 2 && rotation.j >= 3
 }
 
 /**

@@ -4,15 +4,22 @@ import { makeAutoRotations } from '../src/math/ndmath.js'
 import { applyShapeChange, isShapeChangeRotation } from '../src/math/motion.js'
 
 describe('motion plane ownership', () => {
-  it('classifies mixed visible-hidden planes as shape change (regression: 4D morph was dead)', () => {
-    // The classic 4D "inside-out" morph lives in planes like (2,3) and (0,3).
+  it('classifies the z-hidden plane as shape change (regression: 4D morph was dead)', () => {
+    // The classic 4D "inside-out" morph is the (2,3) rotation: z through w.
     expect(isShapeChangeRotation({ i: 2, j: 3 })).toBe(true)
-    expect(isShapeChangeRotation({ i: 0, j: 3 })).toBe(true)
   })
 
   it('classifies hidden-hidden planes as shape change', () => {
     expect(isShapeChangeRotation({ i: 3, j: 4 })).toBe(true)
     expect(isShapeChangeRotation({ i: 5, j: 7 })).toBe(true)
+  })
+
+  it('excludes planes touching x or y (regression: read as spin with Rotate off)', () => {
+    // Rotating x or y through a hidden axis projects as a turntable turn
+    // about the vertical/horizontal axis — that is Rotate's job, not morph.
+    expect(isShapeChangeRotation({ i: 0, j: 3 })).toBe(false)
+    expect(isShapeChangeRotation({ i: 1, j: 3 })).toBe(false)
+    expect(isShapeChangeRotation({ i: 0, j: 7 })).toBe(false)
   })
 
   it('keeps purely visible planes out of shape change', () => {
