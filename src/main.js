@@ -12,6 +12,7 @@ import {
   projectTo3D,
   makeAutoRotations,
 } from './math/ndmath.js'
+import { applyShapeChange, isShapeChangeRotation } from './math/motion.js'
 import { LinesRenderer } from './render/linesRenderer.js'
 import { PlanesRenderer } from './render/planesRenderer.js'
 import { createPanel } from './ui/panel.js'
@@ -27,7 +28,6 @@ const FLING_PX_PER_SECOND = 850
 const SPACE_ROTATION_X_SPEED = 0.11
 const SPACE_ROTATION_Y_SPEED = 0.235
 const SHAPE_CHANGE_SPEED = 0.45
-const HIDDEN_DEPTH_PULSE = 0.28
 
 const state = {
   type: 'hypercube', // one of SHAPES[*].value
@@ -109,6 +109,7 @@ function rebuildShape() {
     const match = prev.find((p) => p.i === r.i && p.j === r.j)
     if (match) r.angle = match.angle
   }
+  if (panel) panel.setShapeChangeEnabled(state.dim > 3)
   applyMode(state.mode)
 }
 
@@ -126,29 +127,14 @@ function applyMode(mode) {
 
 function projectAndUpdate() {
   if (!activeRenderer || !baseVertices) return
-  const changed = applyShapeChange(baseVertices)
+  const changed = applyShapeChange(
+    baseVertices,
+    shapeChangePhase,
+    state.shapeChanging,
+  )
   const rotated = rotatePoints(changed, rotations)
   const projected = projectTo3D(rotated, state.projection, PROJECT_DISTANCE)
   activeRenderer.update(projected)
-}
-
-function applyShapeChange(vertices) {
-  if (state.dim <= 3) return vertices
-
-  const out = new Array(vertices.length)
-  for (let i = 0; i < vertices.length; i++) {
-    const src = vertices[i]
-    const point = src.slice()
-    for (let axis = 3; axis < point.length; axis++) {
-      // Shape Change is a hidden-depth/projection deformation, not a visible
-      // spatial rotation. Scaling only hidden coordinates changes the projected
-      // nesting/telescoping while leaving x/y/z orientation untouched.
-      const phase = shapeChangePhase + axis * 1.618
-      point[axis] *= 1 + HIDDEN_DEPTH_PULSE * Math.sin(phase)
-    }
-    out[i] = point
-  }
-  return out
 }
 
 // ---------------------------------------------------------------------------
@@ -162,27 +148,21 @@ function setSpaceRotating(on) {
 function setShapeChanging(on) {
   state.shapeChanging = on
   if (panel) panel.setShapeChange(on)
-}
-
-function isShapeChangeRotation(rotation) {
-  // Rotating hidden axes against hidden axes changes their projection depth
-  // relationship without rotating visible x/y/z space.
-  return rotation.i >= 3 && rotation.j >= 3
+  // Re-project immediately so toggling off visibly relaxes the shape back to
+  // its undeformed form (the pulse is gated inside applyShapeChange) instead
+  // of freezing it mid-deformation.
+  projectAndUpdate()
 }
 
 function advanceShapeChange(dtSeconds) {
-  let changed = false
-  if (!state.shapeChanging) return
+  if (!state.shapeChanging || state.dim <= 3) return
 
   shapeChangePhase += SHAPE_CHANGE_SPEED * dtSeconds
-  changed = state.dim > 3
-
   for (const rotation of rotations) {
     if (!isShapeChangeRotation(rotation)) continue
     rotation.angle += rotation.speed * dtSeconds
-    changed = true
   }
-  if (changed) projectAndUpdate()
+  projectAndUpdate()
 }
 
 function advanceSpaceRotation(dtSeconds) {

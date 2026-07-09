@@ -155,7 +155,8 @@ export function createPanel(options) {
     'Shape Change',
     onShapeChangeToggle,
   )
-  el.append(row('Shape Change', shapeChangeSwitch.el))
+  const shapeChangeRow = row('Shape Change', shapeChangeSwitch.el)
+  el.append(shapeChangeRow)
 
   // --- Projection toggle (perspective <-> orthographic) --------------------
   const projWrap = document.createElement('div')
@@ -194,6 +195,12 @@ export function createPanel(options) {
     },
     setShapeChange(value) {
       shapeChangeSwitch.setChecked(value)
+    },
+    // Shape Change only has meaning above 3 dimensions; main.js disables it
+    // (without clearing the underlying state) whenever nothing is hidden.
+    setShapeChangeEnabled(on) {
+      shapeChangeSwitch.setDisabled(!on)
+      shapeChangeRow.classList.toggle('panel__row--disabled', !on)
     },
     syncShape,
   }
@@ -332,6 +339,9 @@ function makeSwitch(initial, label, onChange) {
     el: labelEl,
     setChecked(value) {
       input.checked = value
+    },
+    setDisabled(value) {
+      input.disabled = value
     },
   }
 }
