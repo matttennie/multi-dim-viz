@@ -12,11 +12,22 @@
  *   limits:  { DIM_MIN, DIM_MAX, SIDES_MIN, SIDES_MAX },
  *   onShape(value), onDim(value), onSides(value),
  *   onMode('lines'|'planes'), onProjection('perspective'|'orthographic'),
- *   onRotateToggle(boolean),
+ *   onRotateToggle(boolean), onShapeChangeToggle(boolean),
  * }
  */
 export function createPanel(options) {
-  const { shapes, state, limits, onShape, onDim, onSides, onMode, onProjection, onRotateToggle } =
+  const {
+    shapes,
+    state,
+    limits,
+    onShape,
+    onDim,
+    onSides,
+    onMode,
+    onProjection,
+    onRotateToggle,
+    onShapeChangeToggle,
+  } =
     options
 
   const el = document.createElement('div')
@@ -97,7 +108,8 @@ export function createPanel(options) {
     max: initLim.dimMax,
     onChange: onDim,
   })
-  el.append(row('Dimensions', dimStepper.el))
+  const dimRow = row('Dimensions', dimStepper.el)
+  el.append(dimRow)
 
   // --- Sides stepper -------------------------------------------------------
   const sidesStepper = makeStepper({
@@ -116,19 +128,34 @@ export function createPanel(options) {
     const lim = limitsForType(type)
     dimStepper.setRange(lim.dimMin, lim.dimMax)
     dimStepper.setValue(dim)
+    dimStepper.setDisabled(lim.dimMin === lim.dimMax)
+    dimRow.classList.toggle('panel__row--disabled', lim.dimMin === lim.dimMax)
     sidesStepper.setRange(lim.sidesMin, lim.sidesMax)
     sidesStepper.setValue(sides)
     sidesStepper.setDisabled(!lim.usesSides)
     sidesRow.classList.toggle('panel__row--disabled', !lim.usesSides)
   }
+  dimStepper.setDisabled(initLim.dimMin === initLim.dimMax)
+  dimRow.classList.toggle('panel__row--disabled', initLim.dimMin === initLim.dimMax)
   sidesStepper.setDisabled(!initLim.usesSides)
   sidesRow.classList.toggle('panel__row--disabled', !initLim.usesSides)
 
   el.append(divider())
 
   // --- Rotate toggle -------------------------------------------------------
-  const rotateSwitch = makeSwitch(state.rotating, 'Rotate', onRotateToggle)
-  el.append(row('Rotate', rotateSwitch))
+  const rotateSwitch = makeSwitch(
+    state.spaceRotating,
+    'Rotate',
+    onRotateToggle,
+  )
+  el.append(row('Rotate', rotateSwitch.el))
+
+  const shapeChangeSwitch = makeSwitch(
+    state.shapeChanging,
+    'Shape Change',
+    onShapeChangeToggle,
+  )
+  el.append(row('Shape Change', shapeChangeSwitch.el))
 
   // --- Projection toggle (perspective <-> orthographic) --------------------
   const projWrap = document.createElement('div')
@@ -161,6 +188,12 @@ export function createPanel(options) {
     el,
     setFps(value) {
       fpsValue.textContent = String(value)
+    },
+    setRotate(value) {
+      rotateSwitch.setChecked(value)
+    },
+    setShapeChange(value) {
+      shapeChangeSwitch.setChecked(value)
     },
     syncShape,
   }
@@ -268,6 +301,12 @@ function makeStepper({ label, initial, min, max, onChange }) {
 
   minus.addEventListener('click', () => apply(value - 1))
   plus.addEventListener('click', () => apply(value + 1))
+  input.addEventListener('focus', () => input.select())
+  input.addEventListener('mouseup', (event) => {
+    // Keep the whole number highlighted after a mouse click instead of placing
+    // the caret at the clicked character.
+    event.preventDefault()
+  })
   input.addEventListener('change', () => apply(parseInt(input.value, 10)))
 
   refresh()
@@ -289,7 +328,12 @@ function makeSwitch(initial, label, onChange) {
   track.append(thumb)
   labelEl.append(input, track)
   input.addEventListener('change', () => onChange(input.checked))
-  return labelEl
+  return {
+    el: labelEl,
+    setChecked(value) {
+      input.checked = value
+    },
+  }
 }
 
 /**

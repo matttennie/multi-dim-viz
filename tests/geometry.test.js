@@ -13,6 +13,10 @@ function unique(values) {
   return [...new Set(values)]
 }
 
+function assertInvariant(condition, message) {
+  if (!condition) throw new Error(message)
+}
+
 describe('shape generation contracts', () => {
   it('keeps every public control setting inside geometry budgets', () => {
     for (const shapeMeta of SHAPES) {
@@ -49,37 +53,43 @@ describe('shape generation contracts', () => {
       const lim = shapeLimits(shapeMeta.value)
       const shape = buildShape(shapeMeta.value, lim.dimMax, lim.sidesMax)
 
-      expect(shape.dim).toBeGreaterThanOrEqual(lim.dimMin)
-      expect(shape.dim).toBeLessThanOrEqual(lim.dimMax)
-      expect(shape.vertices.length).toBeGreaterThan(0)
+      assertInvariant(shape.dim >= lim.dimMin, `${shapeMeta.value}: dim below min`)
+      assertInvariant(shape.dim <= lim.dimMax, `${shapeMeta.value}: dim above max`)
+      assertInvariant(shape.vertices.length > 0, `${shapeMeta.value}: no vertices`)
 
       for (const vertex of shape.vertices) {
-        expect(vertex).toHaveLength(shape.dim)
-        expect(vertex.every(Number.isFinite)).toBe(true)
+        assertInvariant(vertex.length === shape.dim, `${shapeMeta.value}: bad vertex dimension`)
+        assertInvariant(vertex.every(Number.isFinite), `${shapeMeta.value}: non-finite vertex`)
       }
 
       for (const [a, b] of shape.edges) {
-        expect(a).toBeGreaterThanOrEqual(0)
-        expect(b).toBeGreaterThanOrEqual(0)
-        expect(a).toBeLessThan(shape.vertices.length)
-        expect(b).toBeLessThan(shape.vertices.length)
-        expect(a).not.toBe(b)
+        assertInvariant(a >= 0 && b >= 0, `${shapeMeta.value}: negative edge index`)
+        assertInvariant(
+          a < shape.vertices.length && b < shape.vertices.length,
+          `${shapeMeta.value}: edge index out of range`,
+        )
+        assertInvariant(a !== b, `${shapeMeta.value}: self edge`)
       }
 
       for (const face of shape.faces) {
-        expect(face.length).toBeGreaterThanOrEqual(3)
+        assertInvariant(face.length >= 3, `${shapeMeta.value}: degenerate face`)
         for (const index of face) {
-          expect(index).toBeGreaterThanOrEqual(0)
-          expect(index).toBeLessThan(shape.vertices.length)
+          assertInvariant(
+            index >= 0 && index < shape.vertices.length,
+            `${shapeMeta.value}: face index out of range`,
+          )
         }
       }
 
       const rotated = rotatePoints(shape.vertices, makeAutoRotations(shape.dim))
       const projected = projectTo3D(rotated, 'perspective', 3)
-      expect(projected).toHaveLength(shape.vertices.length)
+      assertInvariant(
+        projected.length === shape.vertices.length,
+        `${shapeMeta.value}: projection length mismatch`,
+      )
       for (const point of projected) {
-        expect(point).toHaveLength(3)
-        expect(point.every(Number.isFinite)).toBe(true)
+        assertInvariant(point.length === 3, `${shapeMeta.value}: projection not 3D`)
+        assertInvariant(point.every(Number.isFinite), `${shapeMeta.value}: non-finite projection`)
       }
     }
   })
@@ -94,5 +104,36 @@ describe('shape generation contracts', () => {
     expect(prism.dim).toBe(shapeLimits('prism').dimMax)
     expect(prism.vertices.length).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxVertices)
     expect(countTriangles(prism.faces)).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxTriangles)
+  })
+
+  it('models user-facing side counts as mathematical limits, not tessellation', () => {
+    for (const shapeMeta of SHAPES) {
+      const lim = shapeLimits(shapeMeta.value)
+      expect(lim.sidesMax).toBeLessThanOrEqual(GEOMETRY_LIMITS.sidesMax)
+    }
+
+    expect(shapeLimits('mobius')).toMatchObject({
+      usesSides: false,
+      dimMin: 3,
+      dimMax: 3,
+      sidesMin: 1,
+      sidesMax: 1,
+    })
+    expect(shapeLimits('torus')).toMatchObject({
+      usesSides: false,
+      dimMin: 2,
+      sidesMin: 2,
+      sidesMax: 2,
+    })
+    expect(shapeLimits('sphere')).toMatchObject({
+      usesSides: false,
+      sidesMin: 2,
+      sidesMax: 2,
+    })
+    expect(shapeLimits('prism')).toMatchObject({
+      usesSides: true,
+      sidesMin: GEOMETRY_LIMITS.sidesMin,
+      sidesMax: GEOMETRY_LIMITS.sidesMax,
+    })
   })
 })

@@ -45,8 +45,9 @@ need LAN testing, run `npm run dev -- --host 0.0.0.0`.
 | **FPS** | Live framerate (render is capped at 60). |
 | **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, Möbius Strip, N-gon Prism, Sphere/Hypersphere. |
 | **Dimensions** | −/+ steppers, range **per shape** (see below). Updates live. |
-| **Sides** | −/+ steppers, range **per shape** (see below). Disabled for shapes that don't use it (hypercube, simplex, cross-polytope). |
-| **Rotate** | Toggles the automatic N-dimensional tumble. Changing other settings does **not** reset it — the tumble continues from its current orientation. |
+| **Sides** | −/+ steppers, range **per shape** (see below). Disabled when side count is fixed or not applicable. |
+| **Rotate** | Toggles rigid rotation in ordinary visible space. |
+| **Shape Change** | Toggles hidden-depth projection deformation, making higher-dimensional projections telescope/morph without spinning the object. |
 | **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
 
 ### Per-shape parameter ranges
@@ -57,10 +58,10 @@ the steppers re-range (and re-clamp the current value) when you switch shapes.
 | Shape | Dimensions | Sides | Why |
 | --- | --- | --- | --- |
 | Hypercube / Simplex / Cross-Polytope | 1–8 | — | meaningful at every dimension, incl. the 1-D segment |
-| Torus | 2–8 | 12 | dim 1 isn't a torus; 12 segments keep the tube round |
-| Möbius Strip | 3–8 | 12 | the half-twist physically needs 3 dimensions |
+| Torus | 2–8 | 2 fixed | 2D shows the circular/ring version; ≥3D shows the donut surface and higher ambient embeddings/projections |
+| Möbius Strip | 3 fixed | 1 fixed | the strip is one-sided and the standard embedding needs 3D; higher ambient dims are not exposed |
 | N-gon Prism | 2–8 | 3–12 | the cross-section polygon needs ≥3 sides |
-| Sphere / Hypersphere | 2–8 | 3–12 | a UV sphere needs ≥3 segments |
+| Sphere / Hypersphere | 2–8 | 2 fixed | orientable surface with inside/outside; tessellation is internal |
 
 ### Geometry and performance caps
 
@@ -68,13 +69,19 @@ The public controls are capped in code (`src/geometry/shapes.js`) and covered by
 tests:
 
 - dimensions: global max **8**
-- sides: global max **12**
+- user-facing side count: global max **12**
+- surface tessellation detail: fixed internally at **12 segments**
 - vertices: hard budget **≤ 5,000**
 - fan-triangulated plane geometry: hard budget **≤ 20,000 triangles**
 
-The runtime defensively clamps all external `buildShape()` inputs into each
-shape's valid range and throws if a future shape change exceeds the
-vertex/triangle budgets.
+Only the N-gon Prism has an editable side count. Torus and Sphere/Hypersphere
+are fixed at two sides (inside/outside), Möbius is fixed at one side, and
+polytopes have no side-count control. The runtime defensively
+clamps all external `buildShape()` inputs into each shape's valid range and
+throws if a future shape change exceeds the vertex/triangle budgets.
+
+When a number field receives focus, its whole value is selected automatically so
+typing replaces the current number without needing an extra select gesture.
 
 ### Performance target
 
@@ -89,7 +96,10 @@ does catch geometry settings that are too large before they reach the renderer.
 
 ### Control semantics
 
-This is still a visual-first visualizer; screen readers cannot make the rendered geometry meaningful on their own. The control panel does use native buttons, number inputs, checkbox controls, keyboard behavior, and ARIA state where appropriate so the UI controls remain well-formed:
+This is still a visual-first visualizer; screen readers cannot make the
+rendered geometry meaningful on their own. The control panel does use native
+buttons, number inputs, checkbox controls, keyboard behavior, and ARIA state
+where appropriate so the UI controls remain well-formed:
 
 - segmented controls update `aria-pressed`
 - the shape dropdown exposes combobox/listbox-style state (`aria-expanded`,
@@ -97,7 +107,10 @@ This is still a visual-first visualizer; screen readers cannot make the rendered
 - disabled Sides controls are actually disabled in the DOM, not just dimmed
 - the Rotate switch and steppers have explicit accessible labels
 
-- **Drag** (mouse or touch) to rotate the view.
+- **Drag** (mouse or touch) to rotate the view. Dragging manually turns the
+  Rotate toggle off.
+- **Fling while Rotate is off** to hand motion back to auto-rotate when you
+  release. A slow drag/release leaves Rotate off.
 - **Scroll / pinch** to zoom.
 - There are intentionally no camera-movement (pan/fly) controls.
 
@@ -157,6 +170,15 @@ scripts/
   the shape spins. Axes 0/1/2 deliberately share one color (they're the
   familiar spatial dimensions); axes 3–7 each get a distinct vivid hue so a
   higher-dimensional edge is instantly identifiable.
+- **Default dimensional view.** The app starts at 3-D, and switching shapes
+  resets to the 3-D view whenever the selected shape supports it. Lower
+  dimensional versions remain available where meaningful (e.g. square for
+  2-cube, triangle for 2-simplex, circle/ring for 2D torus/sphere).
+- **Rotation vs. shape change.** Visible-space rotation and high-dimensional
+  projection morphing are separate controls. `Rotate` spins the projected 3D
+  object as a rigid Three.js object; `Shape Change` modulates hidden-axis depth
+  (and hidden-vs-hidden rotations in 5D+) so the projection telescopes/morphs
+  without driving ordinary visible-space spin.
 - **N-D rotation planes.** A rotation in N dimensions happens in a *plane*
   (a pair of axes), not around an axis. The auto-tumble rotates through a chain
   of coordinate planes — always including a low plane for a familiar spin and,
@@ -176,10 +198,15 @@ scripts/
   single 2-surface that *coils* into each higher axis with its own winding
   harmonic — it visibly changes at every dimension while staying a fast,
   low-overdraw shell. (The Möbius and sphere are likewise surfaces living in
-  dims 0–2 that tumble through the higher dimensions via rotation.)
+  dims 0–2 that tumble through the higher dimensions via rotation.) Their
+  surface tessellation is fixed at 12 segments and is separate from
+  mathematical side count.
 - **Normalization.** Every shape is centered and uniformly scaled so its maximum
   radius is ~1, so all shapes and dimensions fit the same view without
   per-axis distortion.
+- **Auto-rotate behavior.** Automatic motion runs at half the original speed.
+  Manual drag disables visible-space rotation; a fast fling while Rotate is off
+  re-enables it on release so the user can hand motion back to the app.
 - **60fps cap.** The render loop throttles with a threshold a hair below one
   true 60Hz frame (`1000/62`), so genuine 60Hz displays never beat-frequency
   skip a jittery frame while 120/144Hz displays are still capped to ~60.

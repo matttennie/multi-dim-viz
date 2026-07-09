@@ -40,18 +40,18 @@
 // Base angular rate for the auto-rotate tumble (rad/s) and a table of
 // irrational-ish multipliers. Mixing √2, √3, √5 and π based factors keeps every
 // pairwise ratio irrational, so combined the tumble never visibly repeats.
-// With BASE_SPEED = 0.47 every resulting speed lands in the pleasant
-// ~0.15 .. ~0.47 rad/s range (modest, not dizzying).
-const BASE_SPEED = 0.47
+// With BASE_SPEED = 0.235 every resulting speed lands in the gentle
+// ~0.075 .. ~0.235 rad/s range (50% slower than the original tumble).
+const BASE_SPEED = 0.235
 const SPEED_FACTORS = [
-  1.0, //       0.470 rad/s  — familiar primary spin
-  0.86603, //  0.407 rad/s  — √3 / 2
-  0.78540, //  0.369 rad/s  — π / 4
-  0.70711, //  0.332 rad/s  — 1 / √2
-  0.61803, //  0.290 rad/s  — (√5 − 1) / 2  (1/φ)
-  0.52360, //  0.246 rad/s  — π / 6
-  0.41421, //  0.195 rad/s  — √2 − 1
-  0.31831, //  0.150 rad/s  — 1 / π
+  1.0, //       0.235 rad/s  — familiar primary spin
+  0.86603, //  0.204 rad/s  — √3 / 2
+  0.78540, //  0.185 rad/s  — π / 4
+  0.70711, //  0.166 rad/s  — 1 / √2
+  0.61803, //  0.145 rad/s  — (√5 − 1) / 2  (1/φ)
+  0.52360, //  0.123 rad/s  — π / 6
+  0.41421, //  0.097 rad/s  — √2 − 1
+  0.31831, //  0.075 rad/s  — 1 / π
 ]
 
 export function makeAutoRotations(dim) {

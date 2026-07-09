@@ -11,7 +11,6 @@ import {
   rotatePoints,
   projectTo3D,
   makeAutoRotations,
-  advanceRotations,
 } from './math/ndmath.js'
 import { LinesRenderer } from './render/linesRenderer.js'
 import { PlanesRenderer } from './render/planesRenderer.js'
@@ -22,14 +21,22 @@ import { FpsMeter } from './ui/fps.js'
 // Application state
 // ---------------------------------------------------------------------------
 const PROJECT_DISTANCE = 3 // viewing distance used per N-D perspective collapse
+const DEFAULT_DIM = 3
+const MANUAL_DRAG_PX = 6
+const FLING_PX_PER_SECOND = 850
+const SPACE_ROTATION_X_SPEED = 0.11
+const SPACE_ROTATION_Y_SPEED = 0.235
+const SHAPE_CHANGE_SPEED = 0.45
+const HIDDEN_DEPTH_PULSE = 0.28
 
 const state = {
   type: 'hypercube', // one of SHAPES[*].value
-  dim: 4,
-  sides: 6,
+  dim: DEFAULT_DIM,
+  sides: 0,
   mode: 'lines', // 'lines' | 'planes'
   projection: 'perspective', // 'perspective' | 'orthographic'
-  rotating: true,
+  spaceRotating: true,
+  shapeChanging: true,
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +92,8 @@ let shape = null // { vertices:number[][], edges:[i,j][], faces:number[][] }
 let baseVertices = null // un-rotated, normalized N-D vertices
 let rotations = null // auto-rotation plane descriptors
 let activeRenderer = null
+let panel = null
+let shapeChangePhase = 0
 
 function rebuildShape() {
   shape = buildShape(state.type, state.dim, state.sides)
@@ -100,7 +109,6 @@ function rebuildShape() {
     const match = prev.find((p) => p.i === r.i && p.j === r.j)
     if (match) r.angle = match.angle
   }
-
   applyMode(state.mode)
 }
 
@@ -118,15 +126,72 @@ function applyMode(mode) {
 
 function projectAndUpdate() {
   if (!activeRenderer || !baseVertices) return
-  const rotated = rotatePoints(baseVertices, rotations)
+  const changed = applyShapeChange(baseVertices)
+  const rotated = rotatePoints(changed, rotations)
   const projected = projectTo3D(rotated, state.projection, PROJECT_DISTANCE)
   activeRenderer.update(projected)
+}
+
+function applyShapeChange(vertices) {
+  if (state.dim <= 3) return vertices
+
+  const out = new Array(vertices.length)
+  for (let i = 0; i < vertices.length; i++) {
+    const src = vertices[i]
+    const point = src.slice()
+    for (let axis = 3; axis < point.length; axis++) {
+      // Shape Change is a hidden-depth/projection deformation, not a visible
+      // spatial rotation. Scaling only hidden coordinates changes the projected
+      // nesting/telescoping while leaving x/y/z orientation untouched.
+      const phase = shapeChangePhase + axis * 1.618
+      point[axis] *= 1 + HIDDEN_DEPTH_PULSE * Math.sin(phase)
+    }
+    out[i] = point
+  }
+  return out
 }
 
 // ---------------------------------------------------------------------------
 // UI panel
 // ---------------------------------------------------------------------------
-const panel = createPanel({
+function setSpaceRotating(on) {
+  state.spaceRotating = on
+  if (panel) panel.setRotate(on)
+}
+
+function setShapeChanging(on) {
+  state.shapeChanging = on
+  if (panel) panel.setShapeChange(on)
+}
+
+function isShapeChangeRotation(rotation) {
+  // Rotating hidden axes against hidden axes changes their projection depth
+  // relationship without rotating visible x/y/z space.
+  return rotation.i >= 3 && rotation.j >= 3
+}
+
+function advanceShapeChange(dtSeconds) {
+  let changed = false
+  if (!state.shapeChanging) return
+
+  shapeChangePhase += SHAPE_CHANGE_SPEED * dtSeconds
+  changed = state.dim > 3
+
+  for (const rotation of rotations) {
+    if (!isShapeChangeRotation(rotation)) continue
+    rotation.angle += rotation.speed * dtSeconds
+    changed = true
+  }
+  if (changed) projectAndUpdate()
+}
+
+function advanceSpaceRotation(dtSeconds) {
+  if (!state.spaceRotating) return
+  objectGroup.rotation.x += SPACE_ROTATION_X_SPEED * dtSeconds
+  objectGroup.rotation.y += SPACE_ROTATION_Y_SPEED * dtSeconds
+}
+
+panel = createPanel({
   shapes: SHAPES,
   state,
   limits: {
@@ -137,10 +202,12 @@ const panel = createPanel({
   },
   onShape: (value) => {
     state.type = value
-    // Clamp the current dim/sides into the new shape's valid range, then sync
-    // the steppers (ranges + values + enabled state) to match.
+    // New shapes start in the default 3-D view (clamped if a future shape
+    // cannot support it). The side count is clamped to the selected shape's
+    // mathematical range, so fixed-side shapes immediately show their fixed
+    // value and cannot be pushed beyond it.
     const lim = shapeLimits(value)
-    state.dim = clamp(state.dim, lim.dimMin, lim.dimMax)
+    state.dim = clamp(DEFAULT_DIM, lim.dimMin, lim.dimMax)
     state.sides = clamp(state.sides, lim.sidesMin, lim.sidesMax)
     rebuildShape()
     panel.syncShape(value, state.dim, state.sides)
@@ -161,7 +228,10 @@ const panel = createPanel({
     projectAndUpdate()
   },
   onRotateToggle: (on) => {
-    state.rotating = on
+    setSpaceRotating(on)
+  },
+  onShapeChangeToggle: (on) => {
+    setShapeChanging(on)
   },
 })
 document.getElementById('ui').appendChild(panel.el)
@@ -169,6 +239,82 @@ document.getElementById('ui').appendChild(panel.el)
 function clamp(value, lo, hi) {
   return Math.max(lo, Math.min(hi, value))
 }
+
+// ---------------------------------------------------------------------------
+// Manual interaction policy
+// ---------------------------------------------------------------------------
+let manualPointer = null
+
+function onManualPointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return
+  try {
+    canvas.setPointerCapture(e.pointerId)
+  } catch {
+    // Pointer capture is best-effort; OrbitControls still handles the drag.
+  }
+  manualPointer = {
+    id: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    startTime: performance.now(),
+    lastX: e.clientX,
+    lastY: e.clientY,
+    lastTime: performance.now(),
+    maxVelocity: 0,
+    moved: false,
+    wasSpaceRotating: state.spaceRotating,
+  }
+}
+
+function onManualPointerMove(e) {
+  if (!manualPointer || e.pointerId !== manualPointer.id) return
+
+  const totalDx = e.clientX - manualPointer.startX
+  const totalDy = e.clientY - manualPointer.startY
+  const now = performance.now()
+  const stepDx = e.clientX - manualPointer.lastX
+  const stepDy = e.clientY - manualPointer.lastY
+  const dt = Math.max(1, now - manualPointer.lastTime)
+  const velocity = (1000 * Math.hypot(stepDx, stepDy)) / dt
+  manualPointer.maxVelocity = Math.max(manualPointer.maxVelocity, velocity)
+  manualPointer.lastX = e.clientX
+  manualPointer.lastY = e.clientY
+  manualPointer.lastTime = now
+
+  if (!manualPointer.moved && Math.hypot(totalDx, totalDy) >= MANUAL_DRAG_PX) {
+    manualPointer.moved = true
+    if (state.spaceRotating) setSpaceRotating(false)
+  }
+}
+
+function onManualPointerEnd(e) {
+  if (!manualPointer || e.pointerId !== manualPointer.id) return
+  const now = performance.now()
+  const totalDistance = Math.hypot(
+    e.clientX - manualPointer.startX,
+    e.clientY - manualPointer.startY,
+  )
+  const totalTime = Math.max(1, now - manualPointer.startTime)
+  const averageVelocity = (1000 * totalDistance) / totalTime
+  const wasFling =
+    Math.max(manualPointer.maxVelocity, averageVelocity) >= FLING_PX_PER_SECOND
+  const shouldHandBackToAutoRotate =
+    manualPointer.moved && !manualPointer.wasSpaceRotating && wasFling
+  manualPointer = null
+  try {
+    canvas.releasePointerCapture(e.pointerId)
+  } catch {
+    // Ignore if capture was not available or already released.
+  }
+  if (shouldHandBackToAutoRotate && !state.spaceRotating) {
+    setSpaceRotating(true)
+  }
+}
+
+canvas.addEventListener('pointerdown', onManualPointerDown)
+canvas.addEventListener('pointermove', onManualPointerMove)
+canvas.addEventListener('pointerup', onManualPointerEnd)
+canvas.addEventListener('pointercancel', onManualPointerEnd)
 
 // ---------------------------------------------------------------------------
 // Render loop — throttled to 60fps
@@ -188,10 +334,8 @@ function loop(now) {
   if (elapsed < FRAME_MS) return
   lastFrame = now - (elapsed % FRAME_MS)
 
-  if (state.rotating) {
-    advanceRotations(rotations, elapsed / 1000)
-    projectAndUpdate()
-  }
+  advanceSpaceRotation(elapsed / 1000)
+  advanceShapeChange(elapsed / 1000)
 
   controls.update()
   renderer.render(scene, camera)

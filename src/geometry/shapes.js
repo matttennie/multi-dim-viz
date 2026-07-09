@@ -15,8 +15,9 @@
  *   }
  *
  *   Requirements:
- *     - `dim` is an integer in [1, 8]; `sides` is clamped per shape, with a
- *       global ceiling of 12.
+ *     - `dim` is an integer in [1, 8]; user-facing `sides` is a mathematical
+ *       side count clamped per shape, with a global ceiling of 12. Surface
+ *       tessellation is fixed internally so it is not confused with side count.
  *     - Vertices MUST be centered at the origin and normalized so the maximum
  *       distance of any vertex from the origin is ~1.0 (so every shape/dim fits
  *       the same view). Use a single uniform scale factor (don't distort).
@@ -35,18 +36,20 @@
  *     - crossPolytope : orthoplex (2n vertices at +/- unit on each axis).
  *                       Edges connect non-antipodal vertices; faces = triangles
  *                       from 3 distinct axes.
- *     - torus         : (generalized) torus surface, `sides` controls the ring
- *                       resolution. Built in 3D and lifted into higher dims so
- *                       the N-D rotation tumbles it through the extra axes.
+ *     - torus         : (generalized) torus surface. Built in 3D and lifted
+ *                       into higher dims so the N-D rotation tumbles it
+ *                       through the extra axes.
  *     - prism         : n-gon prism (`sides` = polygon sides), extruded through
  *                       the available dimensions.
- *     - sphere        : sphere / hypersphere surface sampled with `sides`
- *                       controlling resolution; lifted/tessellated for the dim.
+ *     - sphere        : sphere / hypersphere surface sampled with fixed
+ *                       tessellation and lifted/tessellated for the dim.
  */
 
 export const GEOMETRY_LIMITS = Object.freeze({
   dimMin: 1,
   dimMax: 8,
+  noSides: 0,
+  surfaceSegments: 12,
   sidesMin: 3,
   sidesMax: 12,
   maxVertices: 5000,
@@ -64,8 +67,8 @@ export const SHAPES = [
     usesSides: false,
     dimMin: GEOMETRY_LIMITS.dimMin,
     dimMax: GEOMETRY_LIMITS.dimMax,
-    sidesMin: GEOMETRY_LIMITS.sidesMin,
-    sidesMax: GEOMETRY_LIMITS.sidesMax,
+    sidesMin: GEOMETRY_LIMITS.noSides,
+    sidesMax: GEOMETRY_LIMITS.noSides,
   },
   {
     value: 'simplex',
@@ -73,8 +76,8 @@ export const SHAPES = [
     usesSides: false,
     dimMin: GEOMETRY_LIMITS.dimMin,
     dimMax: GEOMETRY_LIMITS.dimMax,
-    sidesMin: GEOMETRY_LIMITS.sidesMin,
-    sidesMax: GEOMETRY_LIMITS.sidesMax,
+    sidesMin: GEOMETRY_LIMITS.noSides,
+    sidesMax: GEOMETRY_LIMITS.noSides,
   },
   {
     value: 'crossPolytope',
@@ -82,26 +85,26 @@ export const SHAPES = [
     usesSides: false,
     dimMin: GEOMETRY_LIMITS.dimMin,
     dimMax: GEOMETRY_LIMITS.dimMax,
-    sidesMin: GEOMETRY_LIMITS.sidesMin,
-    sidesMax: GEOMETRY_LIMITS.sidesMax,
+    sidesMin: GEOMETRY_LIMITS.noSides,
+    sidesMax: GEOMETRY_LIMITS.noSides,
   },
   {
     value: 'torus',
     label: 'Torus',
-    usesSides: true,
+    usesSides: false,
     dimMin: 2,
     dimMax: GEOMETRY_LIMITS.dimMax,
-    sidesMin: 12,
-    sidesMax: GEOMETRY_LIMITS.sidesMax,
+    sidesMin: 2,
+    sidesMax: 2,
   },
   {
     value: 'mobius',
     label: 'Möbius Strip',
-    usesSides: true,
+    usesSides: false,
     dimMin: 3,
-    dimMax: GEOMETRY_LIMITS.dimMax,
-    sidesMin: 12,
-    sidesMax: GEOMETRY_LIMITS.sidesMax,
+    dimMax: 3,
+    sidesMin: 1,
+    sidesMax: 1,
   },
   {
     value: 'prism',
@@ -115,11 +118,11 @@ export const SHAPES = [
   {
     value: 'sphere',
     label: 'Sphere / Hypersphere',
-    usesSides: true,
+    usesSides: false,
     dimMin: 2,
     dimMax: GEOMETRY_LIMITS.dimMax,
-    sidesMin: GEOMETRY_LIMITS.sidesMin,
-    sidesMax: GEOMETRY_LIMITS.sidesMax,
+    sidesMin: 2,
+    sidesMax: 2,
   },
 ]
 
@@ -365,9 +368,11 @@ function buildCrossPolytope(dim) {
 // ---------------------------------------------------------------------------
 
 function buildTorus(dim, sides) {
+  const segments = GEOMETRY_LIMITS.surfaceSegments
+
   // dim 2: a flat circle ring (needs >= 3 points to read as a ring).
   if (dim === 2) {
-    const ring = polygonRing(dim, Math.max(3, sides))
+    const ring = polygonRing(dim, segments)
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
@@ -381,10 +386,10 @@ function buildTorus(dim, sides) {
   // (A genuine n-torus would be a k=floor(dim/2)-fold product of circles; it
   // renders fine as lines but is fragment-bound in transparent Planes mode, so
   // we use this wound 2-torus embedding instead.)
-  // `sides` directly controls resolution; the shape's sidesMin (12) keeps it
-  // round, and the internal caps bound the vertex count.
-  const nu = Math.min(sides * 2, 64) // around the main ring
-  const nv = Math.min(sides, GEOMETRY_LIMITS.sidesMax) // around the tube
+  // Surface tessellation is fixed so it is not confused with the mathematical
+  // side-count shown in the UI.
+  const nu = segments * 2 // around the main ring
+  const nv = segments // around the tube
   const idx = (i, j) => i * nv + j
   const R = 0.6
   const r = 0.3
@@ -502,15 +507,17 @@ function buildPrism(dim, sides) {
 // ---------------------------------------------------------------------------
 
 function buildSphere(dim, sides) {
+  const segments = GEOMETRY_LIMITS.surfaceSegments
+
   // dim 2: a flat circle (disk perimeter) with one face.
   if (dim === 2) {
-    const ring = polygonRing(dim, sides)
+    const ring = polygonRing(dim, segments)
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
   // dim >= 3: UV sphere in dims 0,1,2, the rest left at 0.
-  const nLon = sides // longitude segments
-  const nLat = sides // latitude divisions (poles + (nLat-1) interior rings)
+  const nLon = segments // longitude segments
+  const nLat = segments // latitude divisions (poles + (nLat-1) interior rings)
 
   const vertices = []
   // North pole = index 0.
@@ -586,17 +593,20 @@ function buildSphere(dim, sides) {
 // ---------------------------------------------------------------------------
 
 function buildMobius(dim, sides) {
+  const segments = GEOMETRY_LIMITS.surfaceSegments
+
   // A Möbius strip needs a third dimension to take its half-twist, so for
   // dim 2 we fall back to a flat ring.
   if (dim === 2) {
-    const ring = polygonRing(dim, Math.max(3, sides))
+    const ring = polygonRing(dim, segments)
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
   // Built in dims 0,1,2 (higher dims left at 0 so it tumbles through them under
   // N-D rotation). Like the torus, we floor the loop resolution so it always
-  // reads as a smooth band; `sides` nudges the detail up.
-  const nu = Math.min(sides * 4, 160) // segments around the loop (sidesMin keeps it smooth)
+  // reads as a smooth band. Surface tessellation is fixed so it is not confused
+  // with the Möbius strip's mathematical one-sidedness.
+  const nu = segments * 4 // segments around the loop
   const nv = 6 // segments across the width (nv + 1 points)
   const R = 0.7 // loop radius
   const w = 0.32 // half-width of the band
