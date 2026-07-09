@@ -35,6 +35,8 @@ export function createPanel(options) {
   const setModeButtons = (mode) => {
     linesBtn.classList.toggle('seg__btn--active', mode === 'lines')
     planesBtn.classList.toggle('seg__btn--active', mode === 'planes')
+    linesBtn.setAttribute('aria-pressed', String(mode === 'lines'))
+    planesBtn.setAttribute('aria-pressed', String(mode === 'planes'))
   }
   linesBtn.addEventListener('click', () => {
     setModeButtons('lines')
@@ -74,6 +76,7 @@ export function createPanel(options) {
   const dropdown = makeDropdown({
     options: shapes,
     value: state.type,
+    label: 'Shape',
     // main.js clamps state into the new shape's range and calls syncShape().
     onChange: (value) => onShape(value),
   })
@@ -88,6 +91,7 @@ export function createPanel(options) {
 
   // --- Dimensions stepper --------------------------------------------------
   const dimStepper = makeStepper({
+    label: 'Dimensions',
     initial: state.dim,
     min: initLim.dimMin,
     max: initLim.dimMax,
@@ -97,6 +101,7 @@ export function createPanel(options) {
 
   // --- Sides stepper -------------------------------------------------------
   const sidesStepper = makeStepper({
+    label: 'Sides',
     initial: state.sides,
     min: initLim.sidesMin,
     max: initLim.sidesMax,
@@ -113,14 +118,16 @@ export function createPanel(options) {
     dimStepper.setValue(dim)
     sidesStepper.setRange(lim.sidesMin, lim.sidesMax)
     sidesStepper.setValue(sides)
+    sidesStepper.setDisabled(!lim.usesSides)
     sidesRow.classList.toggle('panel__row--disabled', !lim.usesSides)
   }
+  sidesStepper.setDisabled(!initLim.usesSides)
   sidesRow.classList.toggle('panel__row--disabled', !initLim.usesSides)
 
   el.append(divider())
 
   // --- Rotate toggle -------------------------------------------------------
-  const rotateSwitch = makeSwitch(state.rotating, onRotateToggle)
+  const rotateSwitch = makeSwitch(state.rotating, 'Rotate', onRotateToggle)
   el.append(row('Rotate', rotateSwitch))
 
   // --- Projection toggle (perspective <-> orthographic) --------------------
@@ -132,6 +139,8 @@ export function createPanel(options) {
   const setProjButtons = (p) => {
     perspBtn.classList.toggle('seg__btn--active', p === 'perspective')
     orthoBtn.classList.toggle('seg__btn--active', p === 'orthographic')
+    perspBtn.setAttribute('aria-pressed', String(p === 'perspective'))
+    orthoBtn.setAttribute('aria-pressed', String(p === 'orthographic'))
   }
   perspBtn.addEventListener('click', () => {
     setProjButtons('perspective')
@@ -165,6 +174,7 @@ function makeSegBtn(text, active) {
   b.className = 'seg__btn' + (active ? ' seg__btn--active' : '')
   b.textContent = text
   b.type = 'button'
+  b.setAttribute('aria-pressed', String(active))
   return b
 }
 
@@ -188,18 +198,22 @@ function divider() {
   return d
 }
 
-function makeStepper({ initial, min, max, onChange }) {
+function makeStepper({ label, initial, min, max, onChange }) {
   const wrap = document.createElement('div')
   wrap.className = 'stepper'
+  wrap.setAttribute('role', 'group')
+  wrap.setAttribute('aria-label', label)
 
   const minus = document.createElement('button')
   minus.className = 'stepper__btn'
   minus.type = 'button'
   minus.textContent = '−' // minus sign
+  minus.setAttribute('aria-label', `Decrease ${label}`)
 
   const input = document.createElement('input')
   input.className = 'stepper__input'
   input.type = 'number'
+  input.setAttribute('aria-label', label)
   input.min = String(min)
   input.max = String(max)
   input.value = String(initial)
@@ -208,16 +222,20 @@ function makeStepper({ initial, min, max, onChange }) {
   plus.className = 'stepper__btn'
   plus.type = 'button'
   plus.textContent = '+'
+  plus.setAttribute('aria-label', `Increase ${label}`)
 
   let value = initial
   let curMin = min
   let curMax = max
+  let disabled = false
 
   const clamp = (v) => Math.max(curMin, Math.min(curMax, v))
   const refresh = () => {
     input.value = String(value)
-    minus.disabled = value <= curMin
-    plus.disabled = value >= curMax
+    input.disabled = disabled
+    minus.disabled = disabled || value <= curMin
+    plus.disabled = disabled || value >= curMax
+    wrap.setAttribute('aria-disabled', String(disabled))
   }
   // User-initiated change: clamp, reflect, and notify.
   const apply = (v) => {
@@ -243,6 +261,10 @@ function makeStepper({ initial, min, max, onChange }) {
     value = clamp(value)
     refresh()
   }
+  const setDisabled = (on) => {
+    disabled = on
+    refresh()
+  }
 
   minus.addEventListener('click', () => apply(value - 1))
   plus.addEventListener('click', () => apply(value + 1))
@@ -250,15 +272,16 @@ function makeStepper({ initial, min, max, onChange }) {
 
   refresh()
   wrap.append(minus, input, plus)
-  return { el: wrap, setRange, setValue }
+  return { el: wrap, setRange, setValue, setDisabled }
 }
 
-function makeSwitch(initial, onChange) {
+function makeSwitch(initial, label, onChange) {
   const labelEl = document.createElement('label')
   labelEl.className = 'switch'
   const input = document.createElement('input')
   input.type = 'checkbox'
   input.checked = initial
+  input.setAttribute('aria-label', label)
   const track = document.createElement('span')
   track.className = 'switch__track'
   const thumb = document.createElement('span')
@@ -276,13 +299,22 @@ function makeSwitch(initial, onChange) {
  *   value   : initial selected value
  *   onChange(value)
  */
-function makeDropdown({ options, value, onChange }) {
+let dropdownId = 0
+
+function makeDropdown({ options, value, label, onChange }) {
+  dropdownId += 1
+  const menuId = `shape-dropdown-${dropdownId}`
   const root = document.createElement('div')
   root.className = 'dropdown'
 
   const field = document.createElement('button')
   field.type = 'button'
   field.className = 'dropdown__field'
+  field.setAttribute('role', 'combobox')
+  field.setAttribute('aria-label', label)
+  field.setAttribute('aria-haspopup', 'listbox')
+  field.setAttribute('aria-expanded', 'false')
+  field.setAttribute('aria-controls', menuId)
   const fieldText = document.createElement('span')
   fieldText.className = 'dropdown__text'
   const caret = document.createElement('span')
@@ -292,6 +324,9 @@ function makeDropdown({ options, value, onChange }) {
 
   const menu = document.createElement('div')
   menu.className = 'dropdown__menu'
+  menu.id = menuId
+  menu.setAttribute('role', 'listbox')
+  menu.setAttribute('aria-label', label)
 
   let current = value
   const labelFor = (v) => {
@@ -303,10 +338,13 @@ function makeDropdown({ options, value, onChange }) {
   const optionEls = options.map((o) => {
     const item = document.createElement('button')
     item.type = 'button'
+    item.id = `${menuId}-${o.value}`
     item.className =
       'dropdown__option' + (o.value === current ? ' dropdown__option--active' : '')
     item.textContent = o.label
     item.dataset.value = o.value
+    item.setAttribute('role', 'option')
+    item.setAttribute('aria-selected', String(o.value === current))
     item.addEventListener('click', () => {
       choose(o.value)
       close()
@@ -315,6 +353,8 @@ function makeDropdown({ options, value, onChange }) {
     menu.append(item)
     return item
   })
+  const initialActive = optionEls.find((item) => item.dataset.value === current)
+  if (initialActive) field.setAttribute('aria-activedescendant', initialActive.id)
 
   root.append(field, menu)
 
@@ -322,12 +362,14 @@ function makeDropdown({ options, value, onChange }) {
   const openMenu = () => {
     open = true
     root.classList.add('dropdown--open')
+    field.setAttribute('aria-expanded', 'true')
     document.addEventListener('pointerdown', onOutside, true)
     document.addEventListener('keydown', onKey)
   }
   const close = () => {
     open = false
     root.classList.remove('dropdown--open')
+    field.setAttribute('aria-expanded', 'false')
     document.removeEventListener('pointerdown', onOutside, true)
     document.removeEventListener('keydown', onKey)
   }
@@ -352,13 +394,22 @@ function makeDropdown({ options, value, onChange }) {
   const choose = (v) => {
     current = v
     fieldText.textContent = labelFor(v)
-    optionEls.forEach((elx) =>
-      elx.classList.toggle('dropdown__option--active', elx.dataset.value === v),
-    )
+    optionEls.forEach((elx) => {
+      const selected = elx.dataset.value === v
+      elx.classList.toggle('dropdown__option--active', selected)
+      elx.setAttribute('aria-selected', String(selected))
+      if (selected) field.setAttribute('aria-activedescendant', elx.id)
+    })
     onChange(v)
   }
 
   field.addEventListener('click', () => (open ? close() : openMenu()))
+  field.addEventListener('keydown', (e) => {
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !open) {
+      e.preventDefault()
+      openMenu()
+    }
+  })
 
   return { el: root, getValue: () => current, setValue: choose }
 }

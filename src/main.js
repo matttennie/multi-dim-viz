@@ -1,7 +1,12 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
-import { buildShape, SHAPES, shapeLimits } from './geometry/shapes.js'
+import {
+  buildShape,
+  GEOMETRY_LIMITS,
+  SHAPES,
+  shapeLimits,
+} from './geometry/shapes.js'
 import {
   rotatePoints,
   projectTo3D,
@@ -16,10 +21,6 @@ import { FpsMeter } from './ui/fps.js'
 // ---------------------------------------------------------------------------
 // Application state
 // ---------------------------------------------------------------------------
-const DIM_MIN = 1
-const DIM_MAX = 8
-const SIDES_MIN = 1
-const SIDES_MAX = 24
 const PROJECT_DISTANCE = 3 // viewing distance used per N-D perspective collapse
 
 const state = {
@@ -128,7 +129,12 @@ function projectAndUpdate() {
 const panel = createPanel({
   shapes: SHAPES,
   state,
-  limits: { DIM_MIN, DIM_MAX, SIDES_MIN, SIDES_MAX },
+  limits: {
+    DIM_MIN: GEOMETRY_LIMITS.dimMin,
+    DIM_MAX: GEOMETRY_LIMITS.dimMax,
+    SIDES_MIN: GEOMETRY_LIMITS.sidesMin,
+    SIDES_MAX: GEOMETRY_LIMITS.sidesMax,
+  },
   onShape: (value) => {
     state.type = value
     // Clamp the current dim/sides into the new shape's valid range, then sync

@@ -15,13 +15,14 @@
  *   }
  *
  *   Requirements:
- *     - `dim` is an integer in [1, 8]; `sides` an integer in [3, 24].
+ *     - `dim` is an integer in [1, 8]; `sides` is clamped per shape, with a
+ *       global ceiling of 12.
  *     - Vertices MUST be centered at the origin and normalized so the maximum
  *       distance of any vertex from the origin is ~1.0 (so every shape/dim fits
  *       the same view). Use a single uniform scale factor (don't distort).
  *     - `edges` are used by Lines mode; `faces` (2-faces / polygons) by Planes mode.
- *     - Keep totals bounded for performance: aim for <= ~5000 vertices and
- *       <= ~20000 triangles after fan-triangulation. For torus/sphere, choose
+ *     - Keep totals bounded for performance: <= 5000 vertices and <= 20000
+ *       triangles after fan-triangulation. For torus/sphere, choose
  *       tessellation so the count stays bounded as dim grows (do NOT take
  *       sides^dim samples).
  *     - Handle low dims gracefully (dim 1 = a segment, dim 2 = a polygon/face).
@@ -43,18 +44,83 @@
  *                       controlling resolution; lifted/tessellated for the dim.
  */
 
+export const GEOMETRY_LIMITS = Object.freeze({
+  dimMin: 1,
+  dimMax: 8,
+  sidesMin: 3,
+  sidesMax: 12,
+  maxVertices: 5000,
+  maxTriangles: 20000,
+})
+
 // Each shape carries its own valid parameter ranges. The UI steppers and the
 // buildShape() clamp both read these, so a shape can never be driven outside the
 // range where it's geometrically meaningful (e.g. a Möbius strip needs >= 3
 // dimensions for its half-twist; a prism's polygon needs >= 3 sides).
 export const SHAPES = [
-  { value: 'hypercube', label: 'Hypercube', usesSides: false, dimMin: 1, dimMax: 8, sidesMin: 3, sidesMax: 24 },
-  { value: 'simplex', label: 'Simplex', usesSides: false, dimMin: 1, dimMax: 8, sidesMin: 3, sidesMax: 24 },
-  { value: 'crossPolytope', label: 'Cross-Polytope', usesSides: false, dimMin: 1, dimMax: 8, sidesMin: 3, sidesMax: 24 },
-  { value: 'torus', label: 'Torus', usesSides: true, dimMin: 2, dimMax: 8, sidesMin: 12, sidesMax: 32 },
-  { value: 'mobius', label: 'Möbius Strip', usesSides: true, dimMin: 3, dimMax: 8, sidesMin: 12, sidesMax: 32 },
-  { value: 'prism', label: 'N-gon Prism', usesSides: true, dimMin: 2, dimMax: 8, sidesMin: 3, sidesMax: 24 },
-  { value: 'sphere', label: 'Sphere / Hypersphere', usesSides: true, dimMin: 2, dimMax: 8, sidesMin: 3, sidesMax: 32 },
+  {
+    value: 'hypercube',
+    label: 'Hypercube',
+    usesSides: false,
+    dimMin: GEOMETRY_LIMITS.dimMin,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: GEOMETRY_LIMITS.sidesMin,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
+  {
+    value: 'simplex',
+    label: 'Simplex',
+    usesSides: false,
+    dimMin: GEOMETRY_LIMITS.dimMin,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: GEOMETRY_LIMITS.sidesMin,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
+  {
+    value: 'crossPolytope',
+    label: 'Cross-Polytope',
+    usesSides: false,
+    dimMin: GEOMETRY_LIMITS.dimMin,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: GEOMETRY_LIMITS.sidesMin,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
+  {
+    value: 'torus',
+    label: 'Torus',
+    usesSides: true,
+    dimMin: 2,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: 12,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
+  {
+    value: 'mobius',
+    label: 'Möbius Strip',
+    usesSides: true,
+    dimMin: 3,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: 12,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
+  {
+    value: 'prism',
+    label: 'N-gon Prism',
+    usesSides: true,
+    dimMin: 2,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: GEOMETRY_LIMITS.sidesMin,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
+  {
+    value: 'sphere',
+    label: 'Sphere / Hypersphere',
+    usesSides: true,
+    dimMin: 2,
+    dimMax: GEOMETRY_LIMITS.dimMax,
+    sidesMin: GEOMETRY_LIMITS.sidesMin,
+    sidesMax: GEOMETRY_LIMITS.sidesMax,
+  },
 ]
 
 /** Valid parameter ranges for a shape (falls back to the first shape). */
@@ -84,6 +150,7 @@ function zeros(dim) {
  * Returns the final result object.
  */
 function finalize(vertices, edges, faces, dim) {
+  assertGeometryBudget(vertices, faces)
   const n = vertices.length
   if (n > 0) {
     // Centroid.
@@ -112,6 +179,24 @@ function finalize(vertices, edges, faces, dim) {
     }
   }
   return { vertices, edges, faces, dim }
+}
+
+export function countTriangles(faces) {
+  let total = 0
+  for (const face of faces) total += Math.max(0, face.length - 2)
+  return total
+}
+
+function assertGeometryBudget(vertices, faces) {
+  const triangleCount = countTriangles(faces)
+  if (
+    vertices.length > GEOMETRY_LIMITS.maxVertices ||
+    triangleCount > GEOMETRY_LIMITS.maxTriangles
+  ) {
+    throw new Error(
+      `Geometry budget exceeded: ${vertices.length} vertices, ${triangleCount} triangles`,
+    )
+  }
 }
 
 /** A unit segment on axis 0 (used for dim === 1 across all shapes). */
@@ -299,7 +384,7 @@ function buildTorus(dim, sides) {
   // `sides` directly controls resolution; the shape's sidesMin (12) keeps it
   // round, and the internal caps bound the vertex count.
   const nu = Math.min(sides * 2, 64) // around the main ring
-  const nv = Math.min(sides, 32) // around the tube
+  const nv = Math.min(sides, GEOMETRY_LIMITS.sidesMax) // around the tube
   const idx = (i, j) => i * nv + j
   const R = 0.6
   const r = 0.3

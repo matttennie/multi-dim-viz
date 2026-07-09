@@ -13,10 +13,29 @@ npm install
 npm run dev
 ```
 
-Then open the URL Vite prints (default http://localhost:5173/).
+Then open the URL Vite prints (default http://127.0.0.1:5173/).
 
 To build a static bundle: `npm run build` (output in `dist/`), preview with
 `npm run preview`.
+
+Useful checks:
+
+```bash
+npm run test     # geometry/projection invariants and budget caps
+npm run bench    # CPU-side rotate/project benchmark for worst-case settings
+npm audit        # dependency advisory check
+```
+
+## Portfolio deployment
+
+This is a static Vite app. `npm run build` produces a self-contained `dist/`
+folder that can be dropped into a portfolio site, Netlify/Vercel static deploy,
+GitHub Pages, S3/CloudFront, or any ordinary static host.
+
+The Vite config uses `base: './'`, so generated asset URLs are relative and work
+when the app is hosted in a subdirectory such as `/projects/multi-dim-viz/`.
+The dev server is localhost-only by default for safety; if you intentionally
+need LAN testing, run `npm run dev -- --host 0.0.0.0`.
 
 ## Controls (top-right panel)
 
@@ -26,7 +45,9 @@ To build a static bundle: `npm run build` (output in `dist/`), preview with
 | **FPS** | Live framerate (render is capped at 60). |
 | **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, Möbius Strip, N-gon Prism, Sphere/Hypersphere. |
 | **Dimensions** | −/+ steppers, range **per shape** (see below). Updates live. |
-| **Sides** | −/+ steppers, range **per shape** (see below). Greyed out for shapes that don't use it (hypercube, simplex, cross-polytope). |
+| **Sides** | −/+ steppers, range **per shape** (see below). Disabled for shapes that don't use it (hypercube, simplex, cross-polytope). |
+| **Rotate** | Toggles the automatic N-dimensional tumble. Changing other settings does **not** reset it — the tumble continues from its current orientation. |
+| **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
 
 ### Per-shape parameter ranges
 
@@ -36,12 +57,45 @@ the steppers re-range (and re-clamp the current value) when you switch shapes.
 | Shape | Dimensions | Sides | Why |
 | --- | --- | --- | --- |
 | Hypercube / Simplex / Cross-Polytope | 1–8 | — | meaningful at every dimension, incl. the 1-D segment |
-| Torus | 2–8 | 12–32 | dim 1 isn't a torus; ≥12 segments keep the tube round |
-| Möbius Strip | 3–8 | 12–32 | the half-twist physically needs 3 dimensions |
-| N-gon Prism | 2–8 | 3–24 | the cross-section polygon needs ≥3 sides |
-| Sphere / Hypersphere | 2–8 | 3–32 | a UV sphere needs ≥3 segments |
-| **Rotate** | Toggles the automatic N-dimensional tumble. Changing other settings does **not** reset it — the tumble continues from its current orientation. |
-| **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
+| Torus | 2–8 | 12 | dim 1 isn't a torus; 12 segments keep the tube round |
+| Möbius Strip | 3–8 | 12 | the half-twist physically needs 3 dimensions |
+| N-gon Prism | 2–8 | 3–12 | the cross-section polygon needs ≥3 sides |
+| Sphere / Hypersphere | 2–8 | 3–12 | a UV sphere needs ≥3 segments |
+
+### Geometry and performance caps
+
+The public controls are capped in code (`src/geometry/shapes.js`) and covered by
+tests:
+
+- dimensions: global max **8**
+- sides: global max **12**
+- vertices: hard budget **≤ 5,000**
+- fan-triangulated plane geometry: hard budget **≤ 20,000 triangles**
+
+The runtime defensively clamps all external `buildShape()` inputs into each
+shape's valid range and throws if a future shape change exceeds the
+vertex/triangle budgets.
+
+### Performance target
+
+The render loop is capped near 60fps, and the geometry budgets are intended to
+keep every setting comfortably above **30fps on modern desktop hardware**. Actual
+browser FPS still depends on GPU, display power mode, browser, and whether
+Planes mode is fill-rate bound on the target device.
+
+`npm run bench` measures the CPU-side N-D rotation/projection path for the
+largest setting of each shape. It does not measure GPU/WebGL fill-rate, but it
+does catch geometry settings that are too large before they reach the renderer.
+
+### Control semantics
+
+This is still a visual-first visualizer; screen readers cannot make the rendered geometry meaningful on their own. The control panel does use native buttons, number inputs, checkbox controls, keyboard behavior, and ARIA state where appropriate so the UI controls remain well-formed:
+
+- segmented controls update `aria-pressed`
+- the shape dropdown exposes combobox/listbox-style state (`aria-expanded`,
+  `aria-selected`, labelled menu)
+- disabled Sides controls are actually disabled in the DOM, not just dimmed
+- the Rotate switch and steppers have explicit accessible labels
 
 - **Drag** (mouse or touch) to rotate the view.
 - **Scroll / pinch** to zoom.
@@ -89,6 +143,10 @@ src/
   ui/panel.js           the top-right control panel
   ui/fps.js             rolling FPS meter
   style.css
+tests/
+  geometry.test.js      shape/projection invariants and budget checks
+scripts/
+  bench-geometry.js     CPU-side worst-case rotate/project benchmark
 ```
 
 ## Design notes & decisions
@@ -125,6 +183,9 @@ src/
 - **60fps cap.** The render loop throttles with a threshold a hair below one
   true 60Hz frame (`1000/62`), so genuine 60Hz displays never beat-frequency
   skip a jittery frame while 120/144Hz displays are still capped to ~60.
+- **Portfolio-safe defaults.** The production bundle uses relative asset paths,
+  so it can live under a portfolio subdirectory. The dev server binds to
+  localhost unless explicitly overridden.
 - **Module contracts.** `main.js` owns integration and imports fixed
   function/class signatures; geometry, math, and rendering are isolated leaf
   modules behind those contracts (`{ vertices[][], edges[][], faces[][] }` is
