@@ -31,7 +31,7 @@ npm run dev
 Then open the URL Vite prints (default http://127.0.0.1:5173/).
 
 `npm run build` produces a self-contained static bundle in `dist/` that any
-static host or school website can serve, including from a subdirectory. Keep
+static host can serve, including from a subdirectory. Keep
 the included `THIRD-PARTY-NOTICES.txt` with any hosted copy — it carries the
 Three.js license notice.
 
@@ -73,20 +73,6 @@ the familiar surface is coiled into each additional axis with its own winding
 harmonic, so every dimension step genuinely changes the shape while staying
 fast to render. The polytopes (hypercube, simplex, cross-polytope) and the
 prism are exact n-dimensional constructions.
-
-## In the classroom
-
-- Start with the Hypercube at 3 dimensions, then step Dimensions to 4: the
-  classic tesseract appears as a cube nested inside a cube. Edges along
-  dimensions 1–3 are cyan; every edge along the 4th dimension is pink — ask
-  students to find them.
-- Toggle **Projection**: perspective shows the "cube within a cube" nesting;
-  orthographic shows the flat shadow — the same object, two projections.
-- Turn **Rotate** off and **Shape Change** on at 4+ dimensions: all the
-  motion you see is rotation through hidden axes, projected down.
-- Compare the Simplex (n+1 vertices) and Cross-Polytope (2n vertices) as the
-  dimension climbs — counting vertices and edges makes good exercises, and
-  the code's tests check the closed-form formulas.
 
 ## View modes
 

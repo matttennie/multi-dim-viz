@@ -25,7 +25,7 @@ jobs:
         with:
           path: dist
 
-  # Publishes the built app to GitHub Pages so teachers can use it without
+  # Publishes the built app to GitHub Pages so it can be used without
   # installing anything. Requires Pages to be enabled once in the repo:
   # Settings -> Pages -> Source: "GitHub Actions".
   deploy-pages:
