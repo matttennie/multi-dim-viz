@@ -41,8 +41,11 @@
  *                       through the extra axes.
  *     - prism         : n-gon prism (`sides` = polygon sides), extruded through
  *                       the available dimensions.
- *     - sphere        : sphere / hypersphere surface sampled with fixed
- *                       tessellation and lifted/tessellated for the dim.
+ *     - sphere        : sphere surface (UV-sampled S²) built in 3D and, like
+ *                       the torus, coiled into each higher axis so every
+ *                       added dimension genuinely changes the embedding. It
+ *                       is NOT an n-sphere — a sampled S^(n-1) blows the
+ *                       vertex budget past dim 4.
  */
 
 export const GEOMETRY_LIMITS = Object.freeze({
@@ -117,7 +120,7 @@ export const SHAPES = [
   },
   {
     value: 'sphere',
-    label: 'Sphere / Hypersphere',
+    label: 'Sphere',
     usesSides: false,
     dimMin: 2,
     dimMax: GEOMETRY_LIMITS.dimMax,
@@ -367,7 +370,7 @@ function buildCrossPolytope(dim) {
 // torus
 // ---------------------------------------------------------------------------
 
-function buildTorus(dim, sides) {
+function buildTorus(dim) {
   const segments = GEOMETRY_LIMITS.surfaceSegments
 
   // dim 2: a flat circle ring (needs >= 3 points to read as a ring).
@@ -506,7 +509,7 @@ function buildPrism(dim, sides) {
 // sphere
 // ---------------------------------------------------------------------------
 
-function buildSphere(dim, sides) {
+function buildSphere(dim) {
   const segments = GEOMETRY_LIMITS.surfaceSegments
 
   // dim 2: a flat circle (disk perimeter) with one face.
@@ -515,7 +518,11 @@ function buildSphere(dim, sides) {
     return finalize(ring.vertices, ring.edges, ring.faces, dim)
   }
 
-  // dim >= 3: UV sphere in dims 0,1,2, the rest left at 0.
+  // dim >= 3: UV sphere in dims 0,1,2, coiled into each higher axis with its
+  // own winding harmonic (same approach as the torus) so every added dimension
+  // genuinely changes the embedding instead of leaving the extra coordinates
+  // at 0. The sin(phi) factor fades each coil to zero at the poles so the
+  // surface stays continuous where all longitudes meet.
   const nLon = segments // longitude segments
   const nLat = segments // latitude divisions (poles + (nLat-1) interior rings)
 
@@ -538,6 +545,17 @@ function buildSphere(dim, sides) {
       v[0] = sp * Math.cos(theta)
       v[1] = sp * Math.sin(theta)
       v[2] = cp
+      for (let d = 3; d < dim; d++) {
+        const h = d - 2 // 1, 2, 3, ...
+        const amp = 0.35 / Math.sqrt(h)
+        const freq = h + 1
+        v[d] =
+          amp *
+          sp *
+          (d % 2 === 1
+            ? Math.sin(freq * theta + phi)
+            : Math.cos(freq * phi - theta))
+      }
       vertices.push(v)
     }
   }
@@ -592,7 +610,7 @@ function buildSphere(dim, sides) {
 // mobius (Möbius strip)
 // ---------------------------------------------------------------------------
 
-function buildMobius(dim, sides) {
+function buildMobius(dim) {
   const segments = GEOMETRY_LIMITS.surfaceSegments
 
   // A Möbius strip needs a third dimension to take its half-twist, so for
@@ -687,13 +705,13 @@ export function buildShape(type, dim, sides) {
     case 'crossPolytope':
       return buildCrossPolytope(dim)
     case 'torus':
-      return buildTorus(dim, sides)
+      return buildTorus(dim)
     case 'mobius':
-      return buildMobius(dim, sides)
+      return buildMobius(dim)
     case 'prism':
       return buildPrism(dim, sides)
     case 'sphere':
-      return buildSphere(dim, sides)
+      return buildSphere(dim)
     default:
       return buildHypercube(dim)
   }

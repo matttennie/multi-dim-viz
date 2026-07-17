@@ -4,18 +4,19 @@
  * CONTRACT (do not change signatures — main.js depends on them):
  *
  *   makeAutoRotations(dim) -> Array<{ i:number, j:number, angle:number, speed:number }>
- *     Returns the set of coordinate-plane rotations used by the auto-rotate
- *     tumble for a shape of dimension `dim`. Each entry rotates in the plane
- *     spanned by axes i and j (0 <= i < j < dim). `angle` is the current angle
- *     (start at 0), `speed` in radians/second.
- *
- *     Pick speeds that are incommensurate (no simple ratios) so the tumble does
- *     not visibly repeat. Always include a low-index plane (e.g. 0-1) for a
- *     familiar spin, and for dim >= 4 include plane(s) involving the highest
- *     axes so the extra dimensions are visibly revealed. For dim < 2 return [].
+ *     Returns the coordinate-plane rotations that drive the Shape Change
+ *     morph: the depth-like planes (2,3),(3,4),...,(dim-2,dim-1). Planes
+ *     touching the screen-facing x/y axes are never emitted — rotating x or y
+ *     through a hidden axis projects as a turntable turn (apparent spin), and
+ *     visible spin belongs to the rigid 3D rotation in main.js. `angle` is the
+ *     current angle (start at 0), `speed` in radians/second; speeds are
+ *     mutually incommensurate so the morph does not visibly repeat. For
+ *     dim <= 3 returns [] — there is nothing hidden to morph.
  *
  *   advanceRotations(rotations, dtSeconds) -> void
- *     Mutates each rotation's `angle += speed * dtSeconds`.
+ *     Mutates each rotation's `angle += speed * dtSeconds`. (main.js advances
+ *     angles itself so it can gate them on the Shape Change toggle; this
+ *     helper is used by scripts/bench-geometry.js.)
  *
  *   rotatePoints(vertices, rotations) -> number[][]
  *     Returns NEW vertex array (same dim) with every rotation applied in order.
@@ -37,11 +38,11 @@
  *     For dim <= 3 just pad with zeros (no perspective division needed).
  */
 
-// Base angular rate for the auto-rotate tumble (rad/s) and a table of
-// irrational-ish multipliers. Mixing √2, √3, √5 and π based factors keeps every
-// pairwise ratio irrational, so combined the tumble never visibly repeats.
-// With BASE_SPEED = 0.235 every resulting speed lands in the gentle
-// ~0.075 .. ~0.235 rad/s range (50% slower than the original tumble).
+// Base angular rate for the morph planes (rad/s) and a table of irrational-ish
+// multipliers. Mixing √2, √3, √5 and π based factors keeps every pairwise
+// ratio irrational, so the combined morph never visibly repeats. With
+// BASE_SPEED = 0.235 every resulting speed lands in a gentle
+// ~0.075 .. ~0.235 rad/s range.
 const BASE_SPEED = 0.235
 const SPEED_FACTORS = [
   1.0, //       0.235 rad/s  — familiar primary spin
@@ -55,34 +56,16 @@ const SPEED_FACTORS = [
 ]
 
 export function makeAutoRotations(dim) {
-  if (dim < 2) return []
-
-  // Consecutive coordinate-plane chain: (0,1),(1,2),...,(dim-2,dim-1).
-  // This covers every axis, always includes the familiar (0,1) spin, includes
-  // (1,2) for dim >= 3, and includes the highest plane (dim-2, dim-1) for
-  // dim >= 4 — all without any axis being left static.
-  const planes = []
-  for (let i = 0; i + 1 < dim; i++) {
-    planes.push([i, i + 1])
-  }
-
-  // For dim >= 4 also mix the lowest and highest axis directly so the new
-  // dimensions are revealed by more than just adjacent-axis wobble.
-  if (dim >= 4) {
-    planes.push([0, dim - 1])
-  }
-
+  // Consecutive depth-plane chain: (2,3),(3,4),...,(dim-2,dim-1). This covers
+  // every hidden axis, always includes the classic (2,3) z↔w "inside-out"
+  // plane at dim >= 4, and naturally yields [] for dim <= 3.
   const rotations = []
-  for (let k = 0; k < planes.length; k++) {
-    const factor = SPEED_FACTORS[k % SPEED_FACTORS.length]
-    // If we ever run past the table (dim > 8) apply a tiny decay per wrap so
-    // the reused factors stay distinct and incommensurate.
-    const decay = 1 - 0.011 * Math.floor(k / SPEED_FACTORS.length)
+  for (let i = 2; i + 1 < dim; i++) {
     rotations.push({
-      i: planes[k][0],
-      j: planes[k][1],
+      i,
+      j: i + 1,
       angle: 0,
-      speed: BASE_SPEED * factor * decay,
+      speed: BASE_SPEED * SPEED_FACTORS[i % SPEED_FACTORS.length],
     })
   }
   return rotations

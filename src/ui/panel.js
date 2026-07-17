@@ -9,17 +9,17 @@
  * options = {
  *   shapes:  Array<{ value, label, usesSides }>,
  *   state:   shared state object (read for initial values),
- *   limits:  { DIM_MIN, DIM_MAX, SIDES_MIN, SIDES_MAX },
  *   onShape(value), onDim(value), onSides(value),
  *   onMode('lines'|'planes'), onProjection('perspective'|'orthographic'),
  *   onRotateToggle(boolean), onShapeChangeToggle(boolean),
  * }
  */
+import { shapeLimits } from '../geometry/shapes.js'
+
 export function createPanel(options) {
   const {
     shapes,
     state,
-    limits,
     onShape,
     onDim,
     onSides,
@@ -27,8 +27,7 @@ export function createPanel(options) {
     onProjection,
     onRotateToggle,
     onShapeChangeToggle,
-  } =
-    options
+  } = options
 
   const el = document.createElement('div')
   el.className = 'panel'
@@ -69,19 +68,7 @@ export function createPanel(options) {
   el.append(top)
   el.append(divider())
 
-  // Each shape's valid parameter ranges (read from the SHAPES entries, with the
-  // global limits as a fallback).
-  const limitsForType = (type) => {
-    const s = shapes.find((x) => x.value === type) || shapes[0]
-    return {
-      usesSides: s.usesSides,
-      dimMin: s.dimMin ?? limits.DIM_MIN,
-      dimMax: s.dimMax ?? limits.DIM_MAX,
-      sidesMin: s.sidesMin ?? limits.SIDES_MIN,
-      sidesMax: s.sidesMax ?? limits.SIDES_MAX,
-    }
-  }
-  const initLim = limitsForType(state.type)
+  const initLim = shapeLimits(state.type)
 
   // --- Shape dropdown (custom; menu renders inside the page) ----------------
   const dropdown = makeDropdown({
@@ -125,7 +112,7 @@ export function createPanel(options) {
   // Reflect a shape's parameter ranges in the controls. Called by main.js right
   // after it clamps state into the newly selected shape's range.
   function syncShape(type, dim, sides) {
-    const lim = limitsForType(type)
+    const lim = shapeLimits(type)
     dimStepper.setRange(lim.dimMin, lim.dimMax)
     dimStepper.setValue(dim)
     dimStepper.setDisabled(lim.dimMin === lim.dimMax)
@@ -465,5 +452,5 @@ function makeDropdown({ options, value, label, onChange }) {
     }
   })
 
-  return { el: root, getValue: () => current, setValue: choose }
+  return { el: root }
 }

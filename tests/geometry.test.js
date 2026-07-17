@@ -14,7 +14,13 @@ function unique(values) {
 }
 
 function assertInvariant(condition, message) {
-  if (!condition) throw new Error(message)
+  expect(condition, message).toBe(true)
+}
+
+function distance(a, b) {
+  let s = 0
+  for (let i = 0; i < a.length; i++) s += (a[i] - b[i]) ** 2
+  return Math.sqrt(s)
 }
 
 describe('shape generation contracts', () => {
@@ -135,5 +141,87 @@ describe('shape generation contracts', () => {
       sidesMin: GEOMETRY_LIMITS.sidesMin,
       sidesMax: GEOMETRY_LIMITS.sidesMax,
     })
+  })
+})
+
+// The closed-form checks below are what make this suite trustworthy for a
+// math-teaching tool: wrong-but-finite geometry (a sign flip, a missing face
+// family) passes every budget/finiteness test but fails these.
+describe('mathematical structure', () => {
+  it('hypercube has 2^n vertices, n·2^(n-1) edges, C(n,2)·2^(n-2) square faces', () => {
+    for (let dim = 2; dim <= 8; dim++) {
+      const s = buildShape('hypercube', dim, 0)
+      expect(s.vertices.length, `${dim}D vertices`).toBe(2 ** dim)
+      expect(s.edges.length, `${dim}D edges`).toBe(dim * 2 ** (dim - 1))
+      expect(s.faces.length, `${dim}D faces`).toBe(
+        ((dim * (dim - 1)) / 2) * 2 ** (dim - 2),
+      )
+    }
+  })
+
+  it('simplex has n+1 vertices, C(n+1,2) edges of equal length, C(n+1,3) faces', () => {
+    for (let dim = 2; dim <= 8; dim++) {
+      const s = buildShape('simplex', dim, 0)
+      const n = dim + 1
+      expect(s.vertices.length, `${dim}D vertices`).toBe(n)
+      expect(s.edges.length, `${dim}D edges`).toBe((n * (n - 1)) / 2)
+      expect(s.faces.length, `${dim}D faces`).toBe(
+        (n * (n - 1) * (n - 2)) / 6,
+      )
+      // Regularity: every pairwise distance equal (the apex construction).
+      const first = distance(s.vertices[0], s.vertices[1])
+      for (const [a, b] of s.edges) {
+        expect(distance(s.vertices[a], s.vertices[b]), `${dim}D edge ${a}-${b}`).toBeCloseTo(first, 10)
+      }
+    }
+  })
+
+  it('cross-polytope has 2n vertices and 2n(n-1) edges', () => {
+    for (let dim = 2; dim <= 8; dim++) {
+      const s = buildShape('crossPolytope', dim, 0)
+      expect(s.vertices.length, `${dim}D vertices`).toBe(2 * dim)
+      expect(s.edges.length, `${dim}D edges`).toBe(2 * dim * (dim - 1))
+    }
+  })
+
+  it('rotates e_i onto e_j by a quarter turn in plane (i,j)', () => {
+    const e1 = [0, 1, 0, 0]
+    const [r] = rotatePoints([e1], [{ i: 1, j: 3, angle: Math.PI / 2, speed: 0 }])
+    expect(r[0]).toBeCloseTo(0, 12)
+    expect(r[1]).toBeCloseTo(0, 12)
+    expect(r[2]).toBeCloseTo(0, 12)
+    expect(r[3]).toBeCloseTo(1, 12)
+  })
+
+  it('matches a hand-computed perspective projection of a 4D point', () => {
+    // Collapsing x3 = 1 at distance 3 scales the rest by 3 / (3 - 1) = 1.5.
+    const [p] = projectTo3D([[0.2, -0.4, 0.6, 1]], 'perspective', 3)
+    expect(p[0]).toBeCloseTo(0.3, 12)
+    expect(p[1]).toBeCloseTo(-0.6, 12)
+    expect(p[2]).toBeCloseTo(0.9, 12)
+  })
+
+  it('centers every shape at the origin and normalizes max radius to 1', () => {
+    for (const shapeMeta of SHAPES) {
+      const lim = shapeLimits(shapeMeta.value)
+      const s = buildShape(shapeMeta.value, lim.dimMax, lim.sidesMax)
+      const centroid = new Array(s.dim).fill(0)
+      for (const v of s.vertices) {
+        for (let i = 0; i < s.dim; i++) centroid[i] += v[i] / s.vertices.length
+      }
+      for (const c of centroid) {
+        expect(Math.abs(c), `${shapeMeta.value} centroid`).toBeLessThan(1e-9)
+      }
+      const maxR = Math.max(...s.vertices.map((v) => Math.hypot(...v)))
+      expect(maxR, `${shapeMeta.value} max radius`).toBeCloseTo(1, 9)
+    }
+  })
+
+  it('rotatePoints and projectTo3D never mutate their input', () => {
+    const input = [[0.1, 0.2, 0.3, 0.4]]
+    const snapshot = JSON.parse(JSON.stringify(input))
+    rotatePoints(input, [{ i: 0, j: 3, angle: 1.3, speed: 0 }])
+    projectTo3D(input, 'perspective', 3)
+    expect(input).toEqual(snapshot)
   })
 })

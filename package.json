@@ -4,6 +4,25 @@
   "version": "0.1.0",
   "type": "module",
   "description": "A visualizer for shapes in 1-8 dimensions, with lines and planes viewing modes.",
+  "license": "MIT",
+  "author": "Matt Tennie",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matttennie/multi-dim-viz.git"
+  },
+  "keywords": [
+    "visualization",
+    "geometry",
+    "4d",
+    "hypercube",
+    "tesseract",
+    "polytope",
+    "three.js",
+    "math-education"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

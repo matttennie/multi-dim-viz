@@ -17,7 +17,6 @@
  *                               //   (geometry.computeVertexNormals()) so the
  *                               //   external light visibly plays across the
  *                               //   morphing surface. Flag attributes dirty.
- *     dispose()                 // free geometry/material
  *   }
  *
  * Implementation notes:
@@ -44,7 +43,7 @@ export class PlanesRenderer {
       color: 0xffffff, // white base so per-vertex dimension colors show true
       vertexColors: true,
       transparent: true,
-      opacity: 0.25, // 10 percentage points more transparent than before (was 0.35)
+      opacity: 0.25,
       side: THREE.DoubleSide,
       metalness: 0.1,
       roughness: 0.45,
@@ -122,15 +121,7 @@ export class PlanesRenderer {
 
     this._geometry.attributes.position.needsUpdate = true
     // Recompute per-frame so the external light visibly plays across the
-    // morphing surface.
+    // morphing surface (this also flags the normal attribute dirty).
     this._geometry.computeVertexNormals()
-    if (this._geometry.attributes.normal) {
-      this._geometry.attributes.normal.needsUpdate = true
-    }
-  }
-
-  dispose() {
-    this._geometry.dispose()
-    this._material.dispose()
   }
 }

@@ -15,7 +15,6 @@
  *                               //   shape.vertices order. Write endpoint
  *                               //   positions for every edge into the position
  *                               //   attribute and flag it needsUpdate.
- *     dispose()                 // free geometry/material
  *   }
  *
  * Implementation notes:
@@ -99,10 +98,5 @@ export class LinesRenderer {
     }
 
     this._geometry.attributes.position.needsUpdate = true
-  }
-
-  dispose() {
-    this._geometry.dispose()
-    this._material.dispose()
   }
 }

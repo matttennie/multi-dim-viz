@@ -1,45 +1,43 @@
 import { describe, expect, it } from 'vitest'
 
 import { makeAutoRotations } from '../src/math/ndmath.js'
-import { applyShapeChange, isShapeChangeRotation } from '../src/math/motion.js'
+import { applyShapeChange } from '../src/math/motion.js'
 
-describe('motion plane ownership', () => {
-  it('classifies the z-hidden plane as shape change (regression: 4D morph was dead)', () => {
-    // The classic 4D "inside-out" morph is the (2,3) rotation: z through w.
-    expect(isShapeChangeRotation({ i: 2, j: 3 })).toBe(true)
-  })
-
-  it('classifies hidden-hidden planes as shape change', () => {
-    expect(isShapeChangeRotation({ i: 3, j: 4 })).toBe(true)
-    expect(isShapeChangeRotation({ i: 5, j: 7 })).toBe(true)
-  })
-
-  it('excludes planes touching x or y (regression: read as spin with Rotate off)', () => {
+describe('auto-rotation plane ownership', () => {
+  it('emits only depth-like planes, never touching x or y (regression: read as spin with Rotate off)', () => {
     // Rotating x or y through a hidden axis projects as a turntable turn
     // about the vertical/horizontal axis — that is Rotate's job, not morph.
-    expect(isShapeChangeRotation({ i: 0, j: 3 })).toBe(false)
-    expect(isShapeChangeRotation({ i: 1, j: 3 })).toBe(false)
-    expect(isShapeChangeRotation({ i: 0, j: 7 })).toBe(false)
+    for (let dim = 1; dim <= 8; dim++) {
+      for (const { i, j } of makeAutoRotations(dim)) {
+        expect(i, `dim ${dim}`).toBeGreaterThanOrEqual(2)
+        expect(j, `dim ${dim}`).toBeGreaterThan(i)
+        expect(j, `dim ${dim}`).toBeLessThan(dim)
+      }
+    }
   })
 
-  it('keeps purely visible planes out of shape change', () => {
-    expect(isShapeChangeRotation({ i: 0, j: 1 })).toBe(false)
-    expect(isShapeChangeRotation({ i: 1, j: 2 })).toBe(false)
-    expect(isShapeChangeRotation({ i: 0, j: 2 })).toBe(false)
+  it('includes the classic z-w "inside-out" plane at dim 4 (regression: 4D morph was dead)', () => {
+    expect(makeAutoRotations(4)).toEqual([
+      expect.objectContaining({ i: 2, j: 3 }),
+    ])
   })
 
-  it('gives shape change at least one auto-rotation plane in every dim above 3', () => {
+  it('provides at least one morph plane in every dim above 3', () => {
     for (let dim = 4; dim <= 8; dim++) {
-      const owned = makeAutoRotations(dim).filter(isShapeChangeRotation)
-      expect(owned.length, `dim ${dim}`).toBeGreaterThan(0)
+      expect(makeAutoRotations(dim).length, `dim ${dim}`).toBeGreaterThan(0)
     }
   })
 
-  it('gives shape change no planes at dim 3 and below (nothing hidden to morph)', () => {
-    for (let dim = 2; dim <= 3; dim++) {
-      const owned = makeAutoRotations(dim).filter(isShapeChangeRotation)
-      expect(owned.length, `dim ${dim}`).toBe(0)
+  it('provides no planes at dim 3 and below (nothing hidden to morph)', () => {
+    for (let dim = 1; dim <= 3; dim++) {
+      expect(makeAutoRotations(dim), `dim ${dim}`).toEqual([])
     }
+  })
+
+  it('gives every plane a distinct positive speed so the morph does not visibly repeat', () => {
+    const speeds = makeAutoRotations(8).map((r) => r.speed)
+    expect(new Set(speeds).size).toBe(speeds.length)
+    for (const s of speeds) expect(s).toBeGreaterThan(0)
   })
 })
 

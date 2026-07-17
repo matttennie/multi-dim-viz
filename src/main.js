@@ -1,18 +1,13 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
-import {
-  buildShape,
-  GEOMETRY_LIMITS,
-  SHAPES,
-  shapeLimits,
-} from './geometry/shapes.js'
+import { buildShape, SHAPES, shapeLimits } from './geometry/shapes.js'
 import {
   rotatePoints,
   projectTo3D,
   makeAutoRotations,
 } from './math/ndmath.js'
-import { applyShapeChange, isShapeChangeRotation } from './math/motion.js'
+import { applyShapeChange } from './math/motion.js'
 import { LinesRenderer } from './render/linesRenderer.js'
 import { PlanesRenderer } from './render/planesRenderer.js'
 import { createPanel } from './ui/panel.js'
@@ -148,9 +143,14 @@ function setSpaceRotating(on) {
 function setShapeChanging(on) {
   state.shapeChanging = on
   if (panel) panel.setShapeChange(on)
-  // Re-project immediately so toggling off visibly relaxes the shape back to
-  // its undeformed form (the pulse is gated inside applyShapeChange) instead
-  // of freezing it mid-deformation.
+  // Toggling off returns the shape to its undeformed, canonical projection:
+  // the pulse is gated inside applyShapeChange, and resetting the depth-plane
+  // angles here snaps the morph back to its textbook view instead of
+  // freezing it mid-deformation.
+  if (!on) {
+    for (const rotation of rotations || []) rotation.angle = 0
+    shapeChangePhase = 0
+  }
   projectAndUpdate()
 }
 
@@ -158,8 +158,9 @@ function advanceShapeChange(dtSeconds) {
   if (!state.shapeChanging || state.dim <= 3) return
 
   shapeChangePhase += SHAPE_CHANGE_SPEED * dtSeconds
+  // makeAutoRotations only emits depth-like morph planes, so every rotation
+  // here belongs to Shape Change.
   for (const rotation of rotations) {
-    if (!isShapeChangeRotation(rotation)) continue
     rotation.angle += rotation.speed * dtSeconds
   }
   projectAndUpdate()
@@ -174,12 +175,6 @@ function advanceSpaceRotation(dtSeconds) {
 panel = createPanel({
   shapes: SHAPES,
   state,
-  limits: {
-    DIM_MIN: GEOMETRY_LIMITS.dimMin,
-    DIM_MAX: GEOMETRY_LIMITS.dimMax,
-    SIDES_MIN: GEOMETRY_LIMITS.sidesMin,
-    SIDES_MAX: GEOMETRY_LIMITS.sidesMax,
-  },
   onShape: (value) => {
     state.type = value
     // New shapes start in the default 3-D view (clamped if a future shape
@@ -305,6 +300,9 @@ const fps = new FpsMeter()
 // 120/144Hz displays are still throttled down. The modulo accumulator on
 // lastFrame keeps the long-run average pinned to the cap.
 const FRAME_MS = 1000 / 62
+// Ceiling on a single simulation step so returning from a background tab
+// (where requestAnimationFrame pauses) doesn't teleport the animation.
+const MAX_STEP_MS = 100
 let lastFrame = performance.now()
 
 function loop(now) {
@@ -312,10 +310,15 @@ function loop(now) {
 
   const elapsed = now - lastFrame
   if (elapsed < FRAME_MS) return
-  lastFrame = now - (elapsed % FRAME_MS)
+  const remainder = elapsed % FRAME_MS
+  lastFrame = now - remainder
+  // Advance the simulation by exactly the time consumed (elapsed minus the
+  // remainder credited back into lastFrame) — using the full `elapsed` here
+  // would double-count the remainder and run the animation too fast.
+  const dt = Math.min(elapsed - remainder, MAX_STEP_MS) / 1000
 
-  advanceSpaceRotation(elapsed / 1000)
-  advanceShapeChange(elapsed / 1000)
+  advanceSpaceRotation(dt)
+  advanceShapeChange(dt)
 
   controls.update()
   renderer.render(scene, camera)
