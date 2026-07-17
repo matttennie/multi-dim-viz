@@ -1,7 +1,17 @@
 import { performance } from 'node:perf_hooks'
 
-import { buildShape, countTriangles, SHAPES, shapeLimits } from '../src/geometry/shapes.js'
-import { advanceRotations, makeAutoRotations, projectTo3D, rotatePoints } from '../src/math/ndmath.js'
+import {
+  buildShape,
+  countTriangles,
+  SHAPES,
+  shapeLimits,
+} from '../src/geometry/shapes.js'
+import {
+  advanceRotations,
+  makeAutoRotations,
+  projectTo3D,
+  rotatePoints,
+} from '../src/math/ndmath.js'
 
 const frames = Number(process.argv[2] || 240)
 const projection = 'perspective'

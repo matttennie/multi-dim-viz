@@ -2,11 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 import { buildShape, SHAPES, shapeLimits } from './geometry/shapes.js'
-import {
-  rotatePoints,
-  projectTo3D,
-  makeAutoRotations,
-} from './math/ndmath.js'
+import { rotatePoints, projectTo3D, makeAutoRotations } from './math/ndmath.js'
 import { applyShapeChange } from './math/motion.js'
 import { LinesRenderer } from './render/linesRenderer.js'
 import { PlanesRenderer } from './render/planesRenderer.js'

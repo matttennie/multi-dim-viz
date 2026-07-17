@@ -7,7 +7,11 @@ import {
   SHAPES,
   shapeLimits,
 } from '../src/geometry/shapes.js'
-import { makeAutoRotations, projectTo3D, rotatePoints } from '../src/math/ndmath.js'
+import {
+  makeAutoRotations,
+  projectTo3D,
+  rotatePoints,
+} from '../src/math/ndmath.js'
 
 function unique(values) {
   return [...new Set(values)]
@@ -43,12 +47,14 @@ describe('shape generation contracts', () => {
           const shape = buildShape(shapeMeta.value, dim, sides)
           const triangles = countTriangles(shape.faces)
 
-          expect(shape.vertices.length, `${shapeMeta.value} ${dim}D vertices`).toBeLessThanOrEqual(
-            GEOMETRY_LIMITS.maxVertices,
-          )
-          expect(triangles, `${shapeMeta.value} ${dim}D triangles`).toBeLessThanOrEqual(
-            GEOMETRY_LIMITS.maxTriangles,
-          )
+          expect(
+            shape.vertices.length,
+            `${shapeMeta.value} ${dim}D vertices`,
+          ).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxVertices)
+          expect(
+            triangles,
+            `${shapeMeta.value} ${dim}D triangles`,
+          ).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxTriangles)
         }
       }
     }
@@ -59,17 +65,35 @@ describe('shape generation contracts', () => {
       const lim = shapeLimits(shapeMeta.value)
       const shape = buildShape(shapeMeta.value, lim.dimMax, lim.sidesMax)
 
-      assertInvariant(shape.dim >= lim.dimMin, `${shapeMeta.value}: dim below min`)
-      assertInvariant(shape.dim <= lim.dimMax, `${shapeMeta.value}: dim above max`)
-      assertInvariant(shape.vertices.length > 0, `${shapeMeta.value}: no vertices`)
+      assertInvariant(
+        shape.dim >= lim.dimMin,
+        `${shapeMeta.value}: dim below min`,
+      )
+      assertInvariant(
+        shape.dim <= lim.dimMax,
+        `${shapeMeta.value}: dim above max`,
+      )
+      assertInvariant(
+        shape.vertices.length > 0,
+        `${shapeMeta.value}: no vertices`,
+      )
 
       for (const vertex of shape.vertices) {
-        assertInvariant(vertex.length === shape.dim, `${shapeMeta.value}: bad vertex dimension`)
-        assertInvariant(vertex.every(Number.isFinite), `${shapeMeta.value}: non-finite vertex`)
+        assertInvariant(
+          vertex.length === shape.dim,
+          `${shapeMeta.value}: bad vertex dimension`,
+        )
+        assertInvariant(
+          vertex.every(Number.isFinite),
+          `${shapeMeta.value}: non-finite vertex`,
+        )
       }
 
       for (const [a, b] of shape.edges) {
-        assertInvariant(a >= 0 && b >= 0, `${shapeMeta.value}: negative edge index`)
+        assertInvariant(
+          a >= 0 && b >= 0,
+          `${shapeMeta.value}: negative edge index`,
+        )
         assertInvariant(
           a < shape.vertices.length && b < shape.vertices.length,
           `${shapeMeta.value}: edge index out of range`,
@@ -94,8 +118,14 @@ describe('shape generation contracts', () => {
         `${shapeMeta.value}: projection length mismatch`,
       )
       for (const point of projected) {
-        assertInvariant(point.length === 3, `${shapeMeta.value}: projection not 3D`)
-        assertInvariant(point.every(Number.isFinite), `${shapeMeta.value}: non-finite projection`)
+        assertInvariant(
+          point.length === 3,
+          `${shapeMeta.value}: projection not 3D`,
+        )
+        assertInvariant(
+          point.every(Number.isFinite),
+          `${shapeMeta.value}: non-finite projection`,
+        )
       }
     }
   })
@@ -103,13 +133,21 @@ describe('shape generation contracts', () => {
   it('clamps invalid public inputs into per-shape limits', () => {
     const torus = buildShape('torus', -100, 999)
     expect(torus.dim).toBe(shapeLimits('torus').dimMin)
-    expect(torus.vertices.length).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxVertices)
-    expect(countTriangles(torus.faces)).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxTriangles)
+    expect(torus.vertices.length).toBeLessThanOrEqual(
+      GEOMETRY_LIMITS.maxVertices,
+    )
+    expect(countTriangles(torus.faces)).toBeLessThanOrEqual(
+      GEOMETRY_LIMITS.maxTriangles,
+    )
 
     const prism = buildShape('prism', 999, 999)
     expect(prism.dim).toBe(shapeLimits('prism').dimMax)
-    expect(prism.vertices.length).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxVertices)
-    expect(countTriangles(prism.faces)).toBeLessThanOrEqual(GEOMETRY_LIMITS.maxTriangles)
+    expect(prism.vertices.length).toBeLessThanOrEqual(
+      GEOMETRY_LIMITS.maxVertices,
+    )
+    expect(countTriangles(prism.faces)).toBeLessThanOrEqual(
+      GEOMETRY_LIMITS.maxTriangles,
+    )
   })
 
   it('models user-facing side counts as mathematical limits, not tessellation', () => {
@@ -165,13 +203,14 @@ describe('mathematical structure', () => {
       const n = dim + 1
       expect(s.vertices.length, `${dim}D vertices`).toBe(n)
       expect(s.edges.length, `${dim}D edges`).toBe((n * (n - 1)) / 2)
-      expect(s.faces.length, `${dim}D faces`).toBe(
-        (n * (n - 1) * (n - 2)) / 6,
-      )
+      expect(s.faces.length, `${dim}D faces`).toBe((n * (n - 1) * (n - 2)) / 6)
       // Regularity: every pairwise distance equal (the apex construction).
       const first = distance(s.vertices[0], s.vertices[1])
       for (const [a, b] of s.edges) {
-        expect(distance(s.vertices[a], s.vertices[b]), `${dim}D edge ${a}-${b}`).toBeCloseTo(first, 10)
+        expect(
+          distance(s.vertices[a], s.vertices[b]),
+          `${dim}D edge ${a}-${b}`,
+        ).toBeCloseTo(first, 10)
       }
     }
   })
@@ -186,7 +225,10 @@ describe('mathematical structure', () => {
 
   it('rotates e_i onto e_j by a quarter turn in plane (i,j)', () => {
     const e1 = [0, 1, 0, 0]
-    const [r] = rotatePoints([e1], [{ i: 1, j: 3, angle: Math.PI / 2, speed: 0 }])
+    const [r] = rotatePoints(
+      [e1],
+      [{ i: 1, j: 3, angle: Math.PI / 2, speed: 0 }],
+    )
     expect(r[0]).toBeCloseTo(0, 12)
     expect(r[1]).toBeCloseTo(0, 12)
     expect(r[2]).toBeCloseTo(0, 12)

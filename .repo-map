@@ -1,0 +1,47 @@
+# .repo-map — multi-dim-viz
+
+Auto-generated structural summary. Regenerate with:
+    python3 scripts/generate-repo-map.py
+
+Heuristic extraction (regex exports + import-graph PageRank). 12 source files across ['src', 'scripts', 'tests'].
+
+## Most-depended-on files (PageRank · inbound imports)
+
+- `src/geometry/shapes.js`  (in:4)  — GEOMETRY_LIMITS, SHAPES, shapeLimits, countTriangles, buildShape
+- `src/render/colors.js`  (in:2)  — colorForAxis, dominantAxis, dominantAxisOfFace
+- `src/math/ndmath.js`  (in:4)  — makeAutoRotations, advanceRotations, rotatePoints, projectTo3D
+- `src/math/motion.js`  (in:2)  — applyShapeChange
+- `src/render/linesRenderer.js`  (in:1)  — LinesRenderer
+- `src/render/planesRenderer.js`  (in:1)  — PlanesRenderer
+- `src/ui/fps.js`  (in:1)  — FpsMeter
+- `src/ui/panel.js`  (in:1)  — createPanel
+- `scripts/bench-geometry.js`  (in:0)  — 
+- `src/main.js`  (in:0)  — 
+
+## Structure by directory
+
+### src/geometry/
+- shapes.js  (719 loc): GEOMETRY_LIMITS, SHAPES, shapeLimits, countTriangles, buildShape
+
+### src/render/
+- colors.js  (100 loc): colorForAxis, dominantAxis, dominantAxisOfFace
+- linesRenderer.js  (103 loc): LinesRenderer
+- planesRenderer.js  (128 loc): PlanesRenderer
+
+### src/math/
+- ndmath.js  (155 loc): makeAutoRotations, advanceRotations, rotatePoints, projectTo3D
+- motion.js  (35 loc): applyShapeChange
+
+### src/ui/
+- fps.js  (26 loc): FpsMeter
+- panel.js  (457 loc): createPanel
+
+### scripts/
+- bench-geometry.js  (38 loc)
+
+### src/
+- main.js  (348 loc)
+
+### tests/
+- geometry.test.js  (228 loc)
+- motion.test.js  (87 loc)

@@ -339,7 +339,7 @@ function buildCrossPolytope(dim) {
   const edges = []
   for (let p = 0; p < total; p++) {
     for (let q = p + 1; q < total; q++) {
-      if ((p >> 1) === (q >> 1)) continue // same axis => antipodal
+      if (p >> 1 === q >> 1) continue // same axis => antipodal
       edges.push([p, q])
     }
   }
@@ -594,7 +594,12 @@ function buildSphere(dim) {
   for (let i = 1; i <= nLat - 2; i++) {
     for (let j = 0; j < nLon; j++) {
       const j1 = (j + 1) % nLon
-      faces.push([ringIdx(i, j), ringIdx(i, j1), ringIdx(i + 1, j1), ringIdx(i + 1, j)])
+      faces.push([
+        ringIdx(i, j),
+        ringIdx(i, j1),
+        ringIdx(i + 1, j1),
+        ringIdx(i + 1, j),
+      ])
     }
   }
   // Bottom cap triangles.
@@ -665,12 +670,7 @@ function buildMobius(dim) {
   const faces = []
   for (let i = 0; i < nu; i++) {
     for (let j = 0; j < nv; j++) {
-      faces.push([
-        vid(i, j),
-        nextLoop(i, j),
-        nextLoop(i, j + 1),
-        vid(i, j + 1),
-      ])
+      faces.push([vid(i, j), nextLoop(i, j), nextLoop(i, j + 1), vid(i, j + 1)])
     }
   }
 

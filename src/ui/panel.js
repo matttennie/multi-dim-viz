@@ -123,18 +123,17 @@ export function createPanel(options) {
     sidesRow.classList.toggle('panel__row--disabled', !lim.usesSides)
   }
   dimStepper.setDisabled(initLim.dimMin === initLim.dimMax)
-  dimRow.classList.toggle('panel__row--disabled', initLim.dimMin === initLim.dimMax)
+  dimRow.classList.toggle(
+    'panel__row--disabled',
+    initLim.dimMin === initLim.dimMax,
+  )
   sidesStepper.setDisabled(!initLim.usesSides)
   sidesRow.classList.toggle('panel__row--disabled', !initLim.usesSides)
 
   el.append(divider())
 
   // --- Rotate toggle -------------------------------------------------------
-  const rotateSwitch = makeSwitch(
-    state.spaceRotating,
-    'Rotate',
-    onRotateToggle,
-  )
+  const rotateSwitch = makeSwitch(state.spaceRotating, 'Rotate', onRotateToggle)
   el.append(row('Rotate', rotateSwitch.el))
 
   const shapeChangeSwitch = makeSwitch(
@@ -381,7 +380,8 @@ function makeDropdown({ options, value, label, onChange }) {
     item.type = 'button'
     item.id = `${menuId}-${o.value}`
     item.className =
-      'dropdown__option' + (o.value === current ? ' dropdown__option--active' : '')
+      'dropdown__option' +
+      (o.value === current ? ' dropdown__option--active' : '')
     item.textContent = o.label
     item.dataset.value = o.value
     item.setAttribute('role', 'option')
@@ -395,7 +395,8 @@ function makeDropdown({ options, value, label, onChange }) {
     return item
   })
   const initialActive = optionEls.find((item) => item.dataset.value === current)
-  if (initialActive) field.setAttribute('aria-activedescendant', initialActive.id)
+  if (initialActive)
+    field.setAttribute('aria-activedescendant', initialActive.id)
 
   root.append(field, menu)
 

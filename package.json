@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A visualizer for shapes in 1-8 dimensions, with lines and planes viewing modes.",
   "license": "MIT",
-  "author": "Matt Tennie",
+  "author": "Matt Tennie (https://matthewtennie.com)",
   "repository": {
     "type": "git",
     "url": "https://github.com/matttennie/multi-dim-viz.git"
@@ -28,9 +28,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "bench": "node scripts/bench-geometry.js"
+    "bench": "node scripts/bench-geometry.js",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "prettier": "^3.9.5",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
   },

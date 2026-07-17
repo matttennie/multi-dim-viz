@@ -37,16 +37,16 @@ Three.js license notice.
 
 ## Controls (top-right panel)
 
-| Control | What it does |
-| --- | --- |
-| **Lines / Planes** | View mode toggle. |
-| **FPS** | Live framerate (render is capped at 60). |
-| **Shape** | Hypercube, Simplex, Cross-Polytope, Torus, Möbius Strip, N-gon Prism, Sphere. |
-| **Dimensions** | −/+ steppers, range per shape (see below). Updates live. |
-| **Sides** | −/+ steppers, range per shape. Disabled when the side count is fixed or not applicable. |
-| **Rotate** | Toggles rigid rotation in ordinary visible space. |
-| **Shape Change** | Toggles the higher-dimensional morph: rotations through the hidden axes plus a hidden-depth pulse. Disabled at ≤3 dimensions (nothing hidden to morph); turning it off snaps the shape back to its undeformed, textbook view. |
-| **Projection** | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel). |
+| Control            | What it does                                                                                                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lines / Planes** | View mode toggle.                                                                                                                                                                                                             |
+| **FPS**            | Live framerate (render is capped at 60).                                                                                                                                                                                      |
+| **Shape**          | Hypercube, Simplex, Cross-Polytope, Torus, Möbius Strip, N-gon Prism, Sphere.                                                                                                                                                 |
+| **Dimensions**     | −/+ steppers, range per shape (see below). Updates live.                                                                                                                                                                      |
+| **Sides**          | −/+ steppers, range per shape. Disabled when the side count is fixed or not applicable.                                                                                                                                       |
+| **Rotate**         | Toggles rigid rotation in ordinary visible space.                                                                                                                                                                             |
+| **Shape Change**   | Toggles the higher-dimensional morph: rotations through the hidden axes plus a hidden-depth pulse. Disabled at ≤3 dimensions (nothing hidden to morph); turning it off snaps the shape back to its undeformed, textbook view. |
+| **Projection**     | Perspective (nested/telescoping look) ⇄ Orthographic (flat parallel).                                                                                                                                                         |
 
 - **Drag** (mouse or touch) to rotate the view. Dragging manually turns
   Rotate off; a fast fling while Rotate is off hands motion back to
@@ -58,16 +58,16 @@ Three.js license notice.
 Each shape only allows the parameter values where it is geometrically
 meaningful; the steppers re-range (and re-clamp) when you switch shapes.
 
-| Shape | Dimensions | Sides | Why |
-| --- | --- | --- | --- |
-| Hypercube / Simplex / Cross-Polytope | 1–8 | — | meaningful at every dimension, incl. the 1-D segment |
-| Torus | 2–8 | 2 fixed | 2-D shows the ring; ≥3-D shows the donut surface, coiling into each higher dimension |
-| Möbius Strip | 3 fixed | 1 fixed | the one-sided strip needs 3-D for its half-twist |
-| N-gon Prism | 2–8 | 3–12 | the cross-section polygon needs ≥3 sides |
-| Sphere | 2–8 | 2 fixed | a 2-sphere surface that coils into each higher dimension (see note below) |
+| Shape                                | Dimensions | Sides   | Why                                                                                  |
+| ------------------------------------ | ---------- | ------- | ------------------------------------------------------------------------------------ |
+| Hypercube / Simplex / Cross-Polytope | 1–8        | —       | meaningful at every dimension, incl. the 1-D segment                                 |
+| Torus                                | 2–8        | 2 fixed | 2-D shows the ring; ≥3-D shows the donut surface, coiling into each higher dimension |
+| Möbius Strip                         | 3 fixed    | 1 fixed | the one-sided strip needs 3-D for its half-twist                                     |
+| N-gon Prism                          | 2–8        | 3–12    | the cross-section polygon needs ≥3 sides                                             |
+| Sphere                               | 2–8        | 2 fixed | a 2-sphere surface that coils into each higher dimension (see note below)            |
 
 **A note on the curved shapes:** the torus, sphere and Möbius strip are
-2-dimensional *surfaces*. At higher dimension settings the app does not build
+2-dimensional _surfaces_. At higher dimension settings the app does not build
 a true n-torus or n-sphere (their sampled meshes would be enormous); instead
 the familiar surface is coiled into each additional axis with its own winding
 harmonic, so every dimension step genuinely changes the shape while staying
@@ -116,7 +116,7 @@ The pipeline, per frame:
 4. **Render** the 3D result with Three.js, which projects 3D → 2D for the
    screen.
 
-A rotation in N dimensions happens in a *plane* (a pair of axes), not around
+A rotation in N dimensions happens in a _plane_ (a pair of axes), not around
 an axis — that is why the controls talk about rotation planes. Plane speeds
 are mutually incommensurate, so the morph never visibly repeats.
 
@@ -128,8 +128,14 @@ npm run bench    # CPU-side rotate/project benchmark for worst-case settings
 npm audit        # dependency advisory check
 ```
 
-Continuous integration (`.github/workflows/ci.yml`) runs the tests and build
-on every push, then deploys `dist/` to GitHub Pages from `main`.
+Continuous integration (`.github/workflows/ci.yml`) runs the format check,
+tests and build on every push, then deploys `dist/` to GitHub Pages from
+`main`.
+
+`npm install` sets up a pre-commit hook (via Husky) that runs Prettier and
+the test suite. Format with `npx prettier --write .`. After structural
+changes (new files, renamed exports), regenerate the repo map with
+`python3 scripts/generate-repo-map.py`.
 
 ### Project layout
 
@@ -187,8 +193,18 @@ the round 3D torus, an 8-D coiled torus, the Möbius strip, 8-cube
 (perspective & orthographic), 5-simplex, 4-D cross-polytope, octagonal
 prism, a sphere, the dimension-colored planes, and the shape dropdown.
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome — open an issue or PR on
+[GitHub](https://github.com/matttennie/multi-dim-viz). Run `npm test` before
+submitting (the pre-commit hook runs Prettier and the tests automatically).
+Small, focused changes are the easiest to review.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Bundled Three.js is MIT-licensed; its notice
 ships with the build in
 [`public/THIRD-PARTY-NOTICES.txt`](public/THIRD-PARTY-NOTICES.txt).
+
+Made by [Matt Tennie](https://matthewtennie.com)
+([github.com/matttennie](https://github.com/matttennie)).
