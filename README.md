@@ -6,7 +6,7 @@ through their higher-dimensional rotation planes and project down into 3D —
 a hands-on way to build intuition for what "the 4th dimension" (and beyond)
 looks like.
 
-![8-cube in Lines mode](docs/screenshots/04-hypercube-8d-lines.png)
+![A 4D hypercube (tesseract) in Planes mode](docs/screenshots/00-hypercube-4d-planes.png)
 
 ## What you need
 
