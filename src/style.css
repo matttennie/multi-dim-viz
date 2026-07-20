@@ -332,3 +332,24 @@ body {
   line-height: 1.35;
   opacity: 0.8;
 }
+
+/* Small author credit links, bottom-left, out of the way of the canvas. */
+#credits {
+  position: fixed;
+  left: 14px;
+  bottom: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+}
+
+#credits a {
+  color: #888;
+  text-decoration: none;
+}
+
+#credits a:hover {
+  color: #b8b8b8;
+  text-decoration: underline;
+}
