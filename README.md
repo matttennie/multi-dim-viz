@@ -15,10 +15,12 @@ account, and a built copy works offline.
 
 ## Run it
 
-**Hosted.** The included GitHub Actions workflow publishes the app to GitHub
-Pages every time you push to `main`. Turn it on once under Settings > Pages >
-Source: "GitHub Actions", and it goes live at
-`https://<your-username>.github.io/multi-dim-viz/`. Nothing to install.
+**Hosted.** Live at [nplanes.fun](https://nplanes.fun). The included GitHub
+Actions workflow publishes the app to GitHub Pages every time you push to
+`main`. Turn it on once under Settings > Pages > Source: "GitHub Actions".
+The `public/CNAME` file points Pages at the custom domain; without it (e.g.
+a fork), it goes live at `https://<your-username>.github.io/multi-dim-viz/`
+instead. Nothing to install.
 
 **Locally** (needs [Node.js](https://nodejs.org) 20.19 or newer):
 
