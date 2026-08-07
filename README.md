@@ -15,7 +15,7 @@ account, and a built copy works offline.
 
 ## Run it
 
-**Hosted.** Live at [nplanes.fun](https://nplanes.fun). The included GitHub
+**Hosted.** Live at [hypershapes.fun](https://hypershapes.fun). The included GitHub
 Actions workflow publishes the app to GitHub Pages every time you push to
 `main`. Turn it on once under Settings > Pages > Source: "GitHub Actions".
 The `public/CNAME` file points Pages at the custom domain; without it (e.g.
