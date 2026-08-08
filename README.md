@@ -193,5 +193,5 @@ MIT, see [LICENSE](LICENSE). The bundled Three.js is also MIT-licensed, and
 its notice ships with the build in
 [`public/THIRD-PARTY-NOTICES.txt`](public/THIRD-PARTY-NOTICES.txt).
 
-Made by [Matt Tennie](https://matthewtennie.com)
+Made by [Matthew Tennie](https://matthewtennie.com)
 ([github.com/matttennie](https://github.com/matttennie)).

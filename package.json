@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A visualizer for shapes in 1-8 dimensions, with lines and planes viewing modes.",
   "license": "MIT",
-  "author": "Matt Tennie (https://matthewtennie.com)",
+  "author": "Matthew Tennie (https://matthewtennie.com)",
   "repository": {
     "type": "git",
     "url": "https://github.com/matttennie/multi-dim-viz.git"
